@@ -15,15 +15,12 @@ const LoginPage = () => {
 
   const isFromAdmin = location.state?.from?.pathname?.startsWith('/admin');
 
-  const handleSubmit = async (e, overrideEmail, overridePassword) => {
+  const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     setError('');
     setIsSubmitting(true);
 
-    const loginEmail = overrideEmail || email;
-    const loginPassword = overridePassword || password;
-
-    const result = await login(loginEmail, loginPassword);
+    const result = await login(email, password);
     
     if (result.success) {
       const targetFrom = location.state?.from?.pathname;
@@ -44,12 +41,6 @@ const LoginPage = () => {
       setError(result.error);
       setIsSubmitting(false);
     }
-  };
-
-  const handleQuickFill = (demoEmail, demoPassword) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    setError('');
   };
 
   return (
@@ -79,44 +70,6 @@ const LoginPage = () => {
             {error}
           </div>
         )}
-
-        {/* Quick Demo Fill Buttons */}
-        <div className="pt-1 pb-1">
-          <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 text-center">
-            ⚡ Quick Demo Accounts
-          </div>
-          <div className="grid grid-cols-2 gap-2.5">
-            <button
-              type="button"
-              onClick={() => handleQuickFill('admin@danandshay.com', 'admin123')}
-              className="p-2.5 rounded-lg border border-amber-300 bg-amber-50/80 hover:bg-amber-100 text-left transition-all cursor-pointer group"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold text-amber-900 flex items-center gap-1">
-                  👑 Admin
-                </span>
-                <span className="text-[10px] text-amber-800 bg-amber-200 px-1.5 py-0.5 rounded font-mono font-bold">Autofill</span>
-              </div>
-              <div className="text-[11px] text-gray-600 font-mono mt-1 truncate">admin@danandshay.com</div>
-              <div className="text-[10px] text-gray-400 font-mono">Password: admin123</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickFill('fan@example.com', 'fan123')}
-              className="p-2.5 rounded-lg border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-left transition-all cursor-pointer group"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold text-blue-900 flex items-center gap-1">
-                  🎸 Fan Club
-                </span>
-                <span className="text-[10px] text-blue-800 bg-blue-200 px-1.5 py-0.5 rounded font-mono font-bold">Autofill</span>
-              </div>
-              <div className="text-[11px] text-gray-600 font-mono mt-1 truncate">fan@example.com</div>
-              <div className="text-[10px] text-gray-400 font-mono">Password: fan123</div>
-            </button>
-          </div>
-        </div>
 
         <form className="mt-2 space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-4">
