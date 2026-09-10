@@ -67,7 +67,7 @@ const EventDetailPage = () => {
 
   const handleCheckoutSubmit = async (paymentData) => {
     if (checkoutType === 'tickets') {
-      await api.post('/tickets/purchase', { 
+      await api.post('/tickets/book', { 
         eventId: id, 
         seatIds: selectedSeatIds,
         ...paymentData

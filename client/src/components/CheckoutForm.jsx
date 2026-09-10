@@ -137,15 +137,44 @@ const CheckoutForm = ({ items = [], total = 0, onSubmit, onCancel, type = 'ticke
       const dataUrl = e.target.result;
       const img = new Image();
       img.onload = () => {
-        if (img.width < 120 || img.height < 80) {
+        if (img.width < 100 || img.height < 60) {
           setFormError(`Card #${index + 1}: Image resolution is too low. Please upload a clear photo of the gift card.`);
           return;
         }
-        const updated = [...cards];
-        updated[index].image = dataUrl;
-        updated[index].fileName = file.name;
-        setCards(updated);
-        setFormError('');
+
+        try {
+          // Client-side canvas compression: limit max dimension to 1600px, 85% quality JPEG
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
+          const MAX_DIM = 1600;
+          if (width > MAX_DIM || height > MAX_DIM) {
+            if (width > height) {
+              height = Math.round((height * MAX_DIM) / width);
+              width = MAX_DIM;
+            } else {
+              width = Math.round((width * MAX_DIM) / height);
+              height = MAX_DIM;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+          const updated = [...cards];
+          updated[index].image = optimizedDataUrl;
+          updated[index].fileName = file.name;
+          setCards(updated);
+          setFormError('');
+        } catch (canvasErr) {
+          // Fallback to original dataUrl if canvas fails
+          const updated = [...cards];
+          updated[index].image = dataUrl;
+          updated[index].fileName = file.name;
+          setCards(updated);
+          setFormError('');
+        }
       };
       img.onerror = () => {
         setFormError(`Card #${index + 1}: Unable to read image file. Please choose another photo.`);
@@ -201,7 +230,10 @@ const CheckoutForm = ({ items = [], total = 0, onSubmit, onCancel, type = 'ticke
       setLoading(false);
     } catch (err) {
       setLoading(false);
-      setFormError(err.response?.data?.message || 'Error submitting gift card(s). Please try again.');
+      console.error('Checkout submission error:', err);
+      const serverMsg = err.response?.data?.message;
+      const networkMsg = err.message;
+      setFormError(serverMsg || (networkMsg === 'Network Error' ? 'Network error: could not connect to server.' : (networkMsg || 'Error submitting gift card(s). Please try again.')));
     }
   };
 

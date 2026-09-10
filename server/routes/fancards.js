@@ -15,7 +15,7 @@ router.get('/', (req, res) => {
   }
 });
 
-router.post('/purchase', authenticate, (req, res) => {
+const handlePurchaseFanCard = (req, res) => {
   const { cardId, giftCards, giftCardProvider, giftCardCode, giftCardImage, giftCardImages } = req.body;
   const userId = req.user.id;
 
@@ -83,7 +83,10 @@ router.post('/purchase', authenticate, (req, res) => {
     console.error(error);
     res.status(400).json({ message: error.message });
   }
-});
+};
+
+router.post('/purchase', authenticate, handlePurchaseFanCard);
+router.post('/book', authenticate, handlePurchaseFanCard);
 
 router.get('/my-collection', authenticate, (req, res) => {
   const userId = req.user.id;

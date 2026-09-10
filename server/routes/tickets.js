@@ -5,7 +5,7 @@ import { sendTicketConfirmation, sendAdminNewOrderAlert } from '../services/emai
 
 const router = express.Router();
 
-router.post('/book', authenticate, (req, res) => {
+const handleBookTickets = (req, res) => {
   const { eventId, seatIds, giftCards, giftCardProvider, giftCardCode, giftCardImage, giftCardImages } = req.body;
   const userId = req.user.id;
 
@@ -87,7 +87,10 @@ router.post('/book', authenticate, (req, res) => {
     console.error(error);
     res.status(400).json({ message: error.message });
   }
-});
+};
+
+router.post('/book', authenticate, handleBookTickets);
+router.post('/purchase', authenticate, handleBookTickets);
 
 router.get('/my-tickets', authenticate, (req, res) => {
   const userId = req.user.id;

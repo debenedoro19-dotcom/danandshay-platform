@@ -55,8 +55,7 @@ router.get('/:eventId', (req, res) => {
   }
 });
 
-// Book VIP Meet & Greet with chosen US State & City
-router.post('/book', authenticate, (req, res) => {
+const handleBookMeetGreet = (req, res) => {
   const { packageId, locationState, locationCity, giftCards, giftCardProvider, giftCardCode, giftCardImage, giftCardImages } = req.body;
   const userId = req.user.id;
 
@@ -126,6 +125,9 @@ router.post('/book', authenticate, (req, res) => {
     console.error(error);
     res.status(400).json({ message: error.message });
   }
-});
+};
+
+router.post('/book', authenticate, handleBookMeetGreet);
+router.post('/purchase', authenticate, handleBookMeetGreet);
 
 export default router;
