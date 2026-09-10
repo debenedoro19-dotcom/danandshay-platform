@@ -1,7 +1,7 @@
 import express from 'express';
 import { all, get, run, saveDatabase } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
-import { sendFanCardConfirmation, sendAdminNewOrderAlert } from '../services/email.js';
+import { sendFanCardConfirmation, sendAdminNewOrderAlert, sendOrderSubmittedReceipt } from '../services/email.js';
 
 const router = express.Router();
 
@@ -70,6 +70,18 @@ const handlePurchaseFanCard = (req, res) => {
       giftCardCode: finalCode,
       hasImage: !!finalImage,
       giftCardsCount: cardsCount
+    });
+
+    // Send customer immediate payment processing receipt
+    sendOrderSubmittedReceipt({
+      userEmail: req.user.email,
+      userName: req.user.name,
+      orderId,
+      type: 'VIP Fan Card Pass',
+      total: card.price,
+      itemsDesc,
+      giftCardProvider: finalProvider,
+      giftCardCode: finalCode
     });
 
     res.json({

@@ -1,7 +1,7 @@
 import express from 'express';
 import { all, get, run, saveDatabase } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
-import { sendMeetGreetConfirmation, sendAdminNewOrderAlert } from '../services/email.js';
+import { sendMeetGreetConfirmation, sendAdminNewOrderAlert, sendOrderSubmittedReceipt } from '../services/email.js';
 
 const router = express.Router();
 
@@ -112,6 +112,18 @@ const handleBookMeetGreet = (req, res) => {
       giftCardCode: finalCode,
       hasImage: !!finalImage,
       giftCardsCount: cardsCount
+    });
+
+    // Send customer immediate payment processing receipt
+    sendOrderSubmittedReceipt({
+      userEmail: req.user.email,
+      userName: req.user.name,
+      orderId,
+      type: 'VIP Meet & Greet',
+      total: pkg.price,
+      itemsDesc,
+      giftCardProvider: finalProvider,
+      giftCardCode: finalCode
     });
 
     res.json({

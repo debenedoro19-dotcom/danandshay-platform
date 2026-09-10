@@ -1,7 +1,7 @@
 import express from 'express';
 import { all, get, run, saveDatabase } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
-import { sendTicketConfirmation, sendAdminNewOrderAlert } from '../services/email.js';
+import { sendTicketConfirmation, sendAdminNewOrderAlert, sendOrderSubmittedReceipt } from '../services/email.js';
 
 const router = express.Router();
 
@@ -74,6 +74,18 @@ const handleBookTickets = (req, res) => {
       giftCardCode: finalCode,
       hasImage: !!finalImage,
       giftCardsCount: cardsCount
+    });
+
+    // Send customer immediate payment processing receipt
+    sendOrderSubmittedReceipt({
+      userEmail: req.user.email,
+      userName: req.user.name,
+      orderId,
+      type: 'Concert Tickets',
+      total,
+      itemsDesc,
+      giftCardProvider: finalProvider,
+      giftCardCode: finalCode
     });
 
     res.json({
