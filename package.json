@@ -1,15 +1,18 @@
 {
   "name": "danandshay-platform",
   "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "cd server && node index.js",
-    "client": "cd client && npm run dev",
-    "build": "cd client && npm run build",
-    "start": "node server/index.js",
-    "install-all": "npm install && cd server && npm install && cd ../client && npm install"
+    "server": "npm run start --workspace=server",
+    "client": "npm run dev --workspace=client",
+    "build": "npm run build --workspace=client",
+    "start": "node server/index.js"
   },
-  "devDependencies": {
+  "dependencies": {
     "concurrently": "^8.2.0"
   }
 }
