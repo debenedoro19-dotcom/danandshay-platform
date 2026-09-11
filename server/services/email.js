@@ -1,13 +1,9 @@
-function cleanEnv(val) {
-  if (!val) return '';
-  let s = String(val).trim();
-  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
-    s = s.slice(1, -1).trim();
-  }
-  return s;
-}
+import nodemailer from 'nodemailer';
+import { cleanEnv, loadEnvironment } from '../env.js';
 
-export const ADMIN_ALERT_EMAIL = cleanEnv(process.env.ADMIN_ALERT_EMAIL) || 'hannanbrice1@gmail.com';
+let transporterPromise = null;
+
+export const ADMIN_ALERT_EMAIL = cleanEnv(process.env.ADMIN_ALERT_EMAIL) || 'patriciarochecl@gmail.com';
 export const APP_URL = cleanEnv(process.env.APP_URL) || 'https://danandshaytour.online';
 export const FROM_HEADER = cleanEnv(process.env.SMTP_FROM) || '"Dan + Shay Official" <orders@danandshaytour.online>';
 
@@ -15,7 +11,8 @@ export const FROM_HEADER = cleanEnv(process.env.SMTP_FROM) || '"Dan + Shay Offic
  * Creates or retrieves the email transporter with TLS resilience
  */
 export async function getTransporter() {
-  const host = cleanEnv(process.env.SMTP_HOST) || (process.env.SMTP_USER ? 'mail.privateemail.com' : null);
+  loadEnvironment();
+  const host = cleanEnv(process.env.SMTP_HOST) || 'mail.privateemail.com';
   const user = cleanEnv(process.env.SMTP_USER);
   const pass = cleanEnv(process.env.SMTP_PASS);
   const port = parseInt(cleanEnv(process.env.SMTP_PORT) || '465', 10);
@@ -41,7 +38,7 @@ export async function getTransporter() {
   // If live credentials are missing or still placeholder, fallback to Ethereal
   if (!transporterPromise) {
     transporterPromise = (async () => {
-      console.warn('[Email System] Live SMTP_PASS missing or placeholder; initializing Ethereal sandbox test account');
+      console.warn('[Email System] Live SMTP credentials missing or placeholder; initializing Ethereal sandbox test account');
       try {
         const testAccount = await nodemailer.createTestAccount();
         console.log(`[Email System] Ethereal test inbox active (${testAccount.user})`);
@@ -67,18 +64,45 @@ export async function getTransporter() {
  * Verify SMTP connection and return diagnostics
  */
 export async function verifySmtpConnection() {
+  loadEnvironment();
   const host = cleanEnv(process.env.SMTP_HOST) || 'mail.privateemail.com';
   const user = cleanEnv(process.env.SMTP_USER);
   const pass = cleanEnv(process.env.SMTP_PASS);
   const port = parseInt(cleanEnv(process.env.SMTP_PORT) || '465', 10);
   const secure = port === 465 || cleanEnv(process.env.SMTP_SECURE) === 'true';
 
-  if (!user || !pass || pass === 'YOUR_EMAIL_PASSWORD_HERE') {
+  const userConfigured = Boolean(user && user.length > 0);
+  const passConfigured = Boolean(pass && pass.length > 0 && pass !== 'YOUR_EMAIL_PASSWORD_HERE');
+  const isPlaceholder = pass === 'YOUR_EMAIL_PASSWORD_HERE';
+
+  const details = {
+    host,
+    port,
+    secure,
+    user: user || '(empty)',
+    userConfigured,
+    passConfigured,
+    passLength: pass ? pass.length : 0,
+    isPlaceholder
+  };
+
+  if (!userConfigured || !passConfigured) {
+    let specificMsg = '';
+    if (!userConfigured && (!pass || isPlaceholder)) {
+      specificMsg = 'Both SMTP_USER and SMTP_PASS are missing in Render Environment Variables.';
+    } else if (!userConfigured) {
+      specificMsg = `SMTP_USER is missing in Render! (Expected: orders@danandshaytour.online). SMTP_PASS was detected (${pass.length} chars).`;
+    } else if (isPlaceholder) {
+      specificMsg = 'SMTP_PASS is still set to placeholder "YOUR_EMAIL_PASSWORD_HERE". Please replace it with your mailbox password in Render.';
+    } else {
+      specificMsg = 'SMTP_PASS is missing in Render. Please add the SMTP_PASS environment variable in Render.';
+    }
+
     return {
       connected: false,
       configured: false,
-      message: 'SMTP credentials are not fully configured in Render. SMTP_PASS is either missing or still set to the placeholder "YOUR_EMAIL_PASSWORD_HERE".',
-      details: { host, port, user: user || '(empty)', isPlaceholder: pass === 'YOUR_EMAIL_PASSWORD_HERE' }
+      message: specificMsg,
+      details
     };
   }
 
@@ -91,18 +115,20 @@ export async function verifySmtpConnection() {
       tls: { rejectUnauthorized: false }
     });
     await t.verify();
+    // Cache the verified transporter for outgoing live emails
+    transporterPromise = Promise.resolve(t);
     return {
       connected: true,
       configured: true,
       message: `Authentication successful! Connected to ${host}:${port} as ${user}.`,
-      details: { host, port, user, secure }
+      details
     };
   } catch (err) {
     return {
       connected: false,
       configured: true,
       message: `SMTP Mail Server Error: ${err.message}`,
-      details: { host, port, user, code: err.code || err.responseCode, command: err.command }
+      details: { ...details, code: err.code || err.responseCode, command: err.command }
     };
   }
 }

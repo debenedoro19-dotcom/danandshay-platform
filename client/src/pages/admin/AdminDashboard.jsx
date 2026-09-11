@@ -279,10 +279,33 @@ const AdminDashboard = () => {
               )}
             </div>
             {smtpDiagnostics && (
-              <div className={`mt-2 p-2.5 rounded-lg text-xs font-mono max-w-xl ${
-                smtpDiagnostics.connected ? 'bg-green-950/40 text-green-200 border border-green-800' : 'bg-amber-950/50 text-amber-200 border border-amber-800'
+              <div className={`mt-2 p-3 rounded-lg text-xs font-mono max-w-xl ${
+                smtpDiagnostics.connected ? 'bg-green-950/40 text-green-200 border border-green-800' : 'bg-amber-950/60 text-amber-200 border border-amber-800'
               }`}>
-                {smtpDiagnostics.message}
+                <div className="font-bold flex items-center gap-1.5">
+                  <span>{smtpDiagnostics.connected ? '✅' : '⚠️'}</span>
+                  <span>{smtpDiagnostics.message}</span>
+                </div>
+                {smtpDiagnostics.details && (
+                  <div className="mt-2.5 pt-2 border-t border-white/10 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+                    <div><span className="text-gray-400">Host:</span> <span className="font-mono text-gray-200">{smtpDiagnostics.details.host}:{smtpDiagnostics.details.port}</span></div>
+                    <div><span className="text-gray-400">SSL (465):</span> <span className="text-gray-200">{smtpDiagnostics.details.secure ? 'Active' : 'Off'}</span></div>
+                    <div>
+                      <span className="text-gray-400">SMTP_USER:</span>{' '}
+                      {smtpDiagnostics.details.userConfigured 
+                        ? <span className="text-green-400 font-bold">{smtpDiagnostics.details.user}</span> 
+                        : <span className="text-red-400 font-bold">❌ Missing</span>}
+                    </div>
+                    <div>
+                      <span className="text-gray-400">SMTP_PASS:</span>{' '}
+                      {smtpDiagnostics.details.passConfigured 
+                        ? <span className="text-green-400 font-bold">•••••••• ({smtpDiagnostics.details.passLength} chars)</span> 
+                        : (smtpDiagnostics.details.isPlaceholder 
+                          ? <span className="text-amber-400 font-bold">⚠️ Placeholder</span> 
+                          : <span className="text-red-400 font-bold">❌ Missing</span>)}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
