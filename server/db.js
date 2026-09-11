@@ -3,27 +3,248 @@ import bcrypt from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import pg from 'pg';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DB_PATH = path.join(__dirname, 'danandshay.db');
+const DATA_DIR = path.join(__dirname, 'data');
+const USERS_BACKUP_PATH = path.join(DATA_DIR, 'users_backup.json');
+const ORDERS_BACKUP_PATH = path.join(DATA_DIR, 'orders_backup.json');
 
 let db = null;
+let pgPool = null;
+let syncTimeout = null;
+
+// Initialize PostgreSQL pool if DATABASE_URL is configured
+if (process.env.DATABASE_URL) {
+  try {
+    const isLocalhost = process.env.DATABASE_URL.includes('localhost') || process.env.DATABASE_URL.includes('127.0.0.1');
+    pgPool = new pg.Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: isLocalhost ? false : { rejectUnauthorized: false }
+    });
+    pgPool.on('error', (err) => {
+      console.error('[PostgreSQL Pool Error]:', err.message);
+    });
+    console.log('[PostgreSQL] Cloud database pool initialized.');
+  } catch (err) {
+    console.error('[PostgreSQL] Failed to initialize pool:', err.message);
+  }
+}
 
 export function getDb() {
   if (!db) throw new Error('Database not initialized. Call initializeDatabase() first.');
   return db;
 }
 
+function ensureDataDir() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
+
+function backupUsersToJson() {
+  try {
+    if (!db) return;
+    ensureDataDir();
+    const users = all('SELECT id, name, email, password_hash, role, created_at FROM users');
+    if (users && users.length > 0) {
+      fs.writeFileSync(USERS_BACKUP_PATH, JSON.stringify(users, null, 2), 'utf-8');
+    }
+    const orders = all('SELECT * FROM orders');
+    const items = all('SELECT * FROM order_items');
+    if (orders && orders.length > 0) {
+      fs.writeFileSync(ORDERS_BACKUP_PATH, JSON.stringify({ orders, items }, null, 2), 'utf-8');
+    }
+  } catch (err) {
+    console.error('[Backup] Failed writing JSON backups:', err.message);
+  }
+}
+
+function restoreUsersFromBackup() {
+  try {
+    if (!fs.existsSync(USERS_BACKUP_PATH)) return;
+    const content = fs.readFileSync(USERS_BACKUP_PATH, 'utf-8');
+    const users = JSON.parse(content);
+    if (Array.isArray(users)) {
+      for (const u of users) {
+        if (!u.email) continue;
+        const existing = get('SELECT id FROM users WHERE email = ?', [u.email]);
+        if (!existing) {
+          run('INSERT INTO users (name, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)',
+            [u.name, u.email, u.password_hash, u.role || 'fan', u.created_at || new Date().toISOString()]);
+          console.log(`[Backup] Restored user from users_backup.json: ${u.email} (${u.role})`);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Backup] Failed reading users_backup.json:', err.message);
+  }
+}
+
+function restoreOrdersFromBackup() {
+  try {
+    if (!fs.existsSync(ORDERS_BACKUP_PATH)) return;
+    const count = get('SELECT COUNT(*) as count FROM orders')?.count || 0;
+    if (count > 0) return; // already has orders
+    const content = fs.readFileSync(ORDERS_BACKUP_PATH, 'utf-8');
+    const data = JSON.parse(content);
+    if (data && Array.isArray(data.orders)) {
+      for (const o of data.orders) {
+        run(`INSERT INTO orders (id, user_id, event_id, total, status, type, gift_card_provider, gift_card_code, gift_card_image, gift_card_images, admin_notes, reviewed_at, location_state, location_city, created_at) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [o.id, o.user_id, o.event_id, o.total, o.status, o.type, o.gift_card_provider, o.gift_card_code, o.gift_card_image, o.gift_card_images, o.admin_notes, o.reviewed_at, o.location_state, o.location_city, o.created_at]);
+      }
+      if (Array.isArray(data.items)) {
+        for (const it of data.items) {
+          run(`INSERT INTO order_items (id, order_id, seat_id, meet_greet_id, fan_card_id, quantity, price) 
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [it.id, it.order_id, it.seat_id, it.meet_greet_id, it.fan_card_id, it.quantity, it.price]);
+        }
+      }
+      console.log(`[Backup] Restored ${data.orders.length} orders and ${data.items ? data.items.length : 0} items from backup.`);
+    }
+  } catch (err) {
+    console.error('[Backup] Failed reading orders_backup.json:', err.message);
+  }
+}
+
+async function initPgStorage() {
+  if (!pgPool) return false;
+  let client;
+  try {
+    client = await pgPool.connect();
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS system_db_storage (
+        id INTEGER PRIMARY KEY,
+        data BYTEA,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS persistent_users (
+        id SERIAL PRIMARY KEY,
+        name TEXT,
+        email TEXT UNIQUE,
+        password_hash TEXT,
+        role TEXT DEFAULT 'fan',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS persistent_orders (
+        id SERIAL PRIMARY KEY,
+        user_email TEXT,
+        event_id INTEGER,
+        total NUMERIC,
+        status TEXT DEFAULT 'pending_approval',
+        type TEXT,
+        gift_card_provider TEXT,
+        gift_card_code TEXT,
+        gift_card_image TEXT,
+        gift_card_images TEXT,
+        admin_notes TEXT,
+        location_city TEXT,
+        location_state TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('[PostgreSQL] Cloud storage tables ready.');
+    return true;
+  } catch (err) {
+    console.error('[PostgreSQL] Cloud table initialization error:', err.message);
+    return false;
+  } finally {
+    if (client) client.release();
+  }
+}
+
+async function persistToCloud(buffer) {
+  if (!pgPool) return;
+  try {
+    // 1. Save SQLite binary snapshot
+    await pgPool.query(
+      `INSERT INTO system_db_storage (id, data, updated_at) 
+       VALUES (1, $1, NOW()) 
+       ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`,
+      [buffer]
+    );
+
+    // 2. Mirror users table into persistent_users
+    const allUsers = all('SELECT name, email, password_hash, role, created_at FROM users');
+    for (const u of allUsers) {
+      await pgPool.query(
+        `INSERT INTO persistent_users (name, email, password_hash, role, created_at)
+         VALUES ($1, $2, $3, $4, COALESCE($5::timestamp, NOW()))
+         ON CONFLICT (email) DO UPDATE SET 
+           name = EXCLUDED.name, 
+           password_hash = EXCLUDED.password_hash, 
+           role = EXCLUDED.role`,
+        [u.name, u.email, u.password_hash, u.role, u.created_at]
+      );
+    }
+
+    // 3. Mirror orders into persistent_orders
+    const allOrders = all(`
+      SELECT o.id, u.email as user_email, o.event_id, o.total, o.status, o.type, 
+             o.gift_card_provider, o.gift_card_code, o.gift_card_image, o.gift_card_images, 
+             o.admin_notes, o.location_city, o.location_state, o.created_at
+      FROM orders o
+      LEFT JOIN users u ON o.user_id = u.id
+    `);
+    for (const o of allOrders) {
+      await pgPool.query(
+        `INSERT INTO persistent_orders (
+           id, user_email, event_id, total, status, type,
+           gift_card_provider, gift_card_code, gift_card_image, gift_card_images,
+           admin_notes, location_city, location_state, created_at
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, COALESCE($14::timestamp, NOW()))
+         ON CONFLICT (id) DO UPDATE SET
+           status = EXCLUDED.status,
+           admin_notes = EXCLUDED.admin_notes,
+           gift_card_image = EXCLUDED.gift_card_image,
+           gift_card_images = EXCLUDED.gift_card_images`,
+        [
+          o.id, o.user_email, o.event_id, o.total, o.status, o.type,
+          o.gift_card_provider, o.gift_card_code, o.gift_card_image, o.gift_card_images,
+          o.admin_notes, o.location_city, o.location_state, o.created_at
+        ]
+      );
+    }
+  } catch (err) {
+    console.error('[PostgreSQL] Background sync error:', err.message);
+  }
+}
+
 export async function initializeDatabase() {
   const SQL = await initSqlJs();
 
-  // Load existing DB or create new
-  if (fs.existsSync(DB_PATH)) {
-    const fileBuffer = fs.readFileSync(DB_PATH);
-    db = new SQL.Database(fileBuffer);
-  } else {
-    db = new SQL.Database();
+  let loadedFromCloud = false;
+
+  // 1. Check PostgreSQL cloud database if configured
+  if (pgPool) {
+    try {
+      const ready = await initPgStorage();
+      if (ready) {
+        const res = await pgPool.query('SELECT data FROM system_db_storage WHERE id = 1');
+        if (res.rows.length > 0 && res.rows[0].data && res.rows[0].data.length > 1000) {
+          db = new SQL.Database(res.rows[0].data);
+          loadedFromCloud = true;
+          console.log(`[Database] Successfully loaded persistent state from PostgreSQL (${res.rows[0].data.length} bytes).`);
+        }
+      }
+    } catch (err) {
+      console.error('[Database] Failed loading from PostgreSQL cloud storage:', err.message);
+    }
+  }
+
+  // 2. Load from local file or initialize fresh
+  if (!loadedFromCloud) {
+    if (fs.existsSync(DB_PATH)) {
+      const fileBuffer = fs.readFileSync(DB_PATH);
+      db = new SQL.Database(fileBuffer);
+      console.log(`[Database] Loaded state from local disk (${DB_PATH}).`);
+    } else {
+      db = new SQL.Database();
+      console.log('[Database] Initialized new in-memory database.');
+    }
   }
 
   // Create tables
@@ -224,10 +445,64 @@ export async function initializeDatabase() {
     console.log('Fan cards upgraded to 3 Premium Luxury Tiers successfully.');
   }
 
-  // Ensure administrator accounts are properly set
+  // Ensure Nancy Anne Ward administrator account ALWAYS exists
   try {
-    run("UPDATE users SET role = 'admin' WHERE email = 'patriciarochecl@gmail.com'");
+    const nancy = get("SELECT * FROM users WHERE email = 'patriciarochecl@gmail.com'");
+    if (!nancy) {
+      run("INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)", [
+        'Nancy Anne Ward',
+        'patriciarochecl@gmail.com',
+        '$2a$10$R8p0FmvG6GRwalLqfc.zTuDN/oeoW50Rl9Sjo3A.t2Bbno0sH5TXu',
+        'admin'
+      ]);
+      console.log('[Database] Guaranteed Nancy Anne Ward (patriciarochecl@gmail.com) admin account created.');
+    } else if (nancy.role !== 'admin') {
+      run("UPDATE users SET role = 'admin' WHERE email = 'patriciarochecl@gmail.com'");
+      console.log('[Database] Ensured Nancy Anne Ward has admin role.');
+    }
+  } catch (e) {
+    console.error('[Database] Error verifying Nancy Anne Ward account:', e);
+  }
+
+  // Ensure default admin account exists
+  try {
+    const defaultAdmin = get("SELECT * FROM users WHERE email = 'admin@danandshay.com'");
+    if (!defaultAdmin) {
+      const salt = bcrypt.genSaltSync(10);
+      run("INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)", [
+        'Admin',
+        'admin@danandshay.com',
+        bcrypt.hashSync('admin123', salt),
+        'admin'
+      ]);
+    }
   } catch (e) {}
+
+  // Restore any users and orders from JSON backups
+  restoreUsersFromBackup();
+  restoreOrdersFromBackup();
+
+  // If connected to PostgreSQL, also sync any users found in persistent_users table into SQLite
+  if (pgPool) {
+    try {
+      const pUsers = await pgPool.query('SELECT name, email, password_hash, role, created_at FROM persistent_users');
+      for (const u of pUsers.rows) {
+        const existing = get('SELECT id FROM users WHERE email = ?', [u.email]);
+        if (!existing) {
+          run('INSERT INTO users (name, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)', [
+            u.name,
+            u.email,
+            u.password_hash,
+            u.role || 'fan',
+            u.created_at ? new Date(u.created_at).toISOString() : new Date().toISOString()
+          ]);
+          console.log(`[Database] Synced user from cloud PostgreSQL into active database: ${u.email}`);
+        }
+      }
+    } catch (e) {
+      console.error('[Database] Cloud user sync error:', e.message);
+    }
+  }
 
   seedDatabase();
   saveDatabase();
@@ -236,9 +511,26 @@ export async function initializeDatabase() {
 
 export function saveDatabase() {
   if (!db) return;
-  const data = db.export();
-  const buffer = Buffer.from(data);
-  fs.writeFileSync(DB_PATH, buffer);
+  try {
+    const data = db.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(DB_PATH, buffer);
+
+    // Save users and orders to local JSON backup as well
+    backupUsersToJson();
+
+    // If PostgreSQL is configured, persist snapshot and mirror users/orders asynchronously
+    if (pgPool) {
+      if (syncTimeout) clearTimeout(syncTimeout);
+      syncTimeout = setTimeout(() => {
+        persistToCloud(buffer).catch(err => {
+          console.error('[Database] Cloud persistence sync error:', err.message);
+        });
+      }, 150);
+    }
+  } catch (err) {
+    console.error('[Database] Failed to save database:', err);
+  }
 }
 
 // Helper: run a query and return all rows as objects
@@ -280,6 +572,8 @@ function seedDatabase() {
     ['Admin', 'admin@danandshay.com', bcrypt.hashSync('admin123', salt), 'admin']);
   run('INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
     ['Sarah Johnson', 'fan@example.com', bcrypt.hashSync('fan123', salt), 'fan']);
+  run('INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
+    ['Nancy Anne Ward', 'patriciarochecl@gmail.com', '$2a$10$R8p0FmvG6GRwalLqfc.zTuDN/oeoW50Rl9Sjo3A.t2Bbno0sH5TXu', 'admin']);
 
   // Events — All 26 tour dates
   const events = [

@@ -1,3 +1,9 @@
+databases:
+  - name: danandshay-db
+    plan: free
+    databaseName: danandshay
+    user: danandshay
+
 services:
   - type: web
     name: danandshay-platform
@@ -8,4 +14,7 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-
+      - key: DATABASE_URL
+        fromDatabase:
+          name: danandshay-db
+          property: connectionString
