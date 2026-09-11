@@ -102,15 +102,16 @@ router.post('/book', authenticate, handlePurchaseFanCard);
 
 router.get('/my-collection', authenticate, (req, res) => {
   const userId = req.user.id;
+  const userEmail = req.user.email ? req.user.email.trim().toLowerCase() : '';
   try {
     const cards = all(`
       SELECT ufc.acquired_at, o.status as order_status, fc.* 
       FROM user_fan_cards ufc
       JOIN fan_cards fc ON ufc.fan_card_id = fc.id
       LEFT JOIN orders o ON ufc.order_id = o.id
-      WHERE ufc.user_id = ?
+      WHERE (ufc.user_id = ? OR ufc.user_id IN (SELECT id FROM users WHERE LOWER(TRIM(email)) = ?))
       ORDER BY ufc.acquired_at DESC
-    `, [userId]);
+    `, [userId, userEmail]);
     res.json(cards);
   } catch (error) {
     console.error(error);

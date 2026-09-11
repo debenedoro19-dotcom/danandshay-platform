@@ -106,6 +106,7 @@ router.post('/purchase', authenticate, handleBookTickets);
 
 router.get('/my-tickets', authenticate, (req, res) => {
   const userId = req.user.id;
+  const userEmail = req.user.email ? req.user.email.trim().toLowerCase() : '';
   try {
     const rows = all(`
       SELECT o.id as order_id, o.total, o.status, o.created_at, e.title, e.date, e.time, e.venue, e.city, e.state, e.image_url,
@@ -114,9 +115,10 @@ router.get('/my-tickets', authenticate, (req, res) => {
       JOIN order_items oi ON o.id = oi.order_id
       JOIN venue_seats s ON oi.seat_id = s.id
       JOIN events e ON s.event_id = e.id
-      WHERE o.user_id = ? AND o.type = 'ticket'
+      WHERE (o.user_id = ? OR o.user_id IN (SELECT id FROM users WHERE LOWER(TRIM(email)) = ?)) 
+        AND o.type = 'ticket'
       ORDER BY o.created_at DESC
-    `, [userId]);
+    `, [userId, userEmail]);
 
     // Group by order
     const tickets = [];

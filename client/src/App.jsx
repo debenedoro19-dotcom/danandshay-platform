@@ -51,6 +51,14 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <MyTicketsPage />
+                </ProtectedRoute>
+              } 
+            />
             
             {/* Protected Routes (Admin) */}
             <Route 

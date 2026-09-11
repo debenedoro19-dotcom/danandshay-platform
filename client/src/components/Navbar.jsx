@@ -55,8 +55,9 @@ const Navbar = () => {
                     <span>Admin</span>
                   </Link>
                 )}
-                <Link to="/my-tickets" className="text-sm font-medium text-charcoal hover:text-gold transition-colors">
-                  My Tickets
+                <Link to="/my-tickets" className="text-sm font-semibold text-charcoal hover:text-gold transition-colors flex items-center gap-1">
+                  <span>🎟️</span>
+                  <span>My Tickets & Passes</span>
                 </Link>
                 <button
                   onClick={logout}
@@ -131,9 +132,10 @@ const Navbar = () => {
                 <Link
                   to="/my-tickets"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="block px-3 py-2 rounded-md text-base font-medium text-charcoal hover:bg-blush hover:text-gold"
+                  className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-semibold text-charcoal hover:bg-blush hover:text-gold"
                 >
-                  My Tickets
+                  <span>🎟️</span>
+                  <span>My Tickets & Passes (Dashboard)</span>
                 </Link>
                 <button
                   onClick={() => {

@@ -19,6 +19,7 @@ router.get('/', (req, res) => {
 // User's own VIP bookings (MUST be defined before /:eventId)
 router.get('/my-bookings', authenticate, (req, res) => {
   const userId = req.user.id;
+  const userEmail = req.user.email ? req.user.email.trim().toLowerCase() : '';
   try {
     const bookings = all(`
       SELECT o.id as order_id, o.total, o.status, o.created_at, o.location_state, o.location_city,
@@ -34,9 +35,10 @@ router.get('/my-bookings', authenticate, (req, res) => {
       JOIN order_items oi ON o.id = oi.order_id
       JOIN meet_greet_packages m ON oi.meet_greet_id = m.id
       LEFT JOIN events e ON m.event_id = e.id
-      WHERE o.user_id = ? AND o.type = 'meet_greet'
+      WHERE (o.user_id = ? OR o.user_id IN (SELECT id FROM users WHERE LOWER(TRIM(email)) = ?)) 
+        AND o.type = 'meet_greet'
       ORDER BY o.created_at DESC
-    `, [userId]);
+    `, [userId, userEmail]);
     res.json(bookings);
   } catch (error) {
     console.error(error);

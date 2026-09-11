@@ -38,10 +38,12 @@ const RegisterPage = () => {
 
     setIsSubmitting(true);
 
-    const result = await register(formData.name, formData.email, formData.password);
+    const cleanEmail = formData.email.trim().toLowerCase();
+    const cleanName = formData.name.trim();
+    const result = await register(cleanName, cleanEmail, formData.password);
     
     if (result.success) {
-      navigate('/');
+      navigate('/my-tickets');
     } else {
       setError(result.error);
       setIsSubmitting(false);
@@ -92,6 +94,9 @@ const RegisterPage = () => {
                 name="email"
                 type="email"
                 required
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 value={formData.email}
                 onChange={handleChange}
                 className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-charcoal rounded-md focus:outline-none focus:ring-gold focus:border-gold focus:z-10 sm:text-sm font-body"

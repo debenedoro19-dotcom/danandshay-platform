@@ -20,7 +20,8 @@ const LoginPage = () => {
     setError('');
     setIsSubmitting(true);
 
-    const result = await login(email, password);
+    const cleanEmail = email.trim().toLowerCase();
+    const result = await login(cleanEmail, password);
     
     if (result.success) {
       const targetFrom = location.state?.from?.pathname;
@@ -34,7 +35,7 @@ const LoginPage = () => {
         if (targetFrom && !targetFrom.startsWith('/admin') && targetFrom !== '/login') {
           navigate(targetFrom, { replace: true });
         } else {
-          navigate('/events', { replace: true });
+          navigate('/my-tickets', { replace: true });
         }
       }
     } else {
@@ -81,6 +82,9 @@ const LoginPage = () => {
                 id="email"
                 type="email"
                 required
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-charcoal rounded-md focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold sm:text-sm font-body"
