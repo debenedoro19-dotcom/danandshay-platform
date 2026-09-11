@@ -268,12 +268,24 @@ router.get('/users', requireAdmin, (req, res) => {
   }
 });
 
+// Check live SMTP status
+router.get('/smtp-status', requireAdmin, async (req, res) => {
+  try {
+    const { verifySmtpConnection } = await import('../services/email.js');
+    const status = await verifySmtpConnection();
+    res.json(status);
+  } catch (err) {
+    res.status(500).json({ connected: false, message: err.message });
+  }
+});
+
 // Endpoint to dispatch sample preview emails of all templates to admin email
 router.post('/send-test-email', requireAdmin, async (req, res) => {
   const targetEmail = (req.body && req.body.email) || req.user?.email || 'hannanbrice1@gmail.com';
   const targetName = req.user?.name || 'Nancy Anne Ward';
   try {
     const { 
+      verifySmtpConnection,
       sendWelcomeRegistrationEmail,
       sendTicketConfirmation, 
       sendMeetGreetConfirmation, 
@@ -283,10 +295,18 @@ router.post('/send-test-email', requireAdmin, async (req, res) => {
       sendAdminNewOrderAlert 
     } = await import('../services/email.js');
 
-    // 1. Welcome Registration
-    sendWelcomeRegistrationEmail(targetEmail, targetName);
+    // 1. Verify SMTP connection first
+    const conn = await verifySmtpConnection();
+    if (!conn.connected) {
+      return res.status(400).json({
+        success: false,
+        message: conn.message,
+        details: conn.details
+      });
+    }
 
-    // 2. Ticket Pass
+    // 2. Dispatch all 7 templates
+    sendWelcomeRegistrationEmail(targetEmail, targetName);
     sendTicketConfirmation(targetEmail, targetName, { id: 1089, total: 250 }, [
       { section: 'VIP Platinum', row: 'A', seat_number: 12, price: 250 }
     ], {
@@ -296,21 +316,15 @@ router.post('/send-test-email', requireAdmin, async (req, res) => {
       city: 'Noblesville',
       state: 'IN'
     });
-
-    // 3. Meet & Greet VIP Backstage Pass
     sendMeetGreetConfirmation(targetEmail, targetName, { id: 2045, total: 600, location_city: 'Nashville', location_state: 'TN' }, {
       title: 'Platinum Sound Check Experience',
       perks: 'Soundcheck Access, Private Meet & Greet with Dan + Shay, Photo Op, VIP Commemorative Laminate, Early Entry'
     });
-
-    // 4. Fan Card Collector Pass
     sendFanCardConfirmation(targetEmail, targetName, { id: 3012, total: 400 }, {
       title: 'Gold VIP Executive Card',
       rarity: 'Gold',
       description: 'Heavy 24K mirror gold foil finish with embossed lettering. Includes VIP soundcheck access and exclusive tour lithograph.'
     });
-
-    // 5. Order Submitted receipt
     sendOrderSubmittedReceipt({
       userEmail: targetEmail,
       userName: targetName,
@@ -321,11 +335,7 @@ router.post('/send-test-email', requireAdmin, async (req, res) => {
       giftCardProvider: 'Apple Store Gift Card',
       giftCardCode: 'X100: X794-8832-1190-2241\nX100: X882-9901-4412-5503'
     });
-
-    // 6. Order Approved
     sendOrderApprovedEmail(targetEmail, targetName, 4098, 'ticket', 850);
-
-    // 7. Admin Alert
     sendAdminNewOrderAlert({
       orderId: 4098,
       user: { name: targetName, email: targetEmail },
@@ -338,10 +348,14 @@ router.post('/send-test-email', requireAdmin, async (req, res) => {
       giftCardsCount: 2
     });
 
-    res.json({ success: true, message: `All 7 email templates dispatched to ${targetEmail}!` });
+    res.json({
+      success: true,
+      message: `Verified! All 7 email templates dispatched successfully to ${targetEmail} via ${conn.details.host}!`,
+      details: conn.details
+    });
   } catch (error) {
     console.error('Test email error:', error);
-    res.status(500).json({ message: 'Failed to send test emails', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to send test emails', error: error.message });
   }
 });
 
@@ -355,6 +369,7 @@ router.get('/trigger-sample-previews', async (req, res) => {
   const targetName = req.query.name || 'Nancy Anne Ward';
   try {
     const { 
+      verifySmtpConnection,
       sendWelcomeRegistrationEmail,
       sendTicketConfirmation, 
       sendMeetGreetConfirmation, 
@@ -363,6 +378,15 @@ router.get('/trigger-sample-previews', async (req, res) => {
       sendOrderApprovedEmail, 
       sendAdminNewOrderAlert 
     } = await import('../services/email.js');
+
+    const conn = await verifySmtpConnection();
+    if (!conn.connected) {
+      return res.status(400).json({
+        success: false,
+        message: conn.message,
+        details: conn.details
+      });
+    }
 
     sendWelcomeRegistrationEmail(targetEmail, targetName);
     sendTicketConfirmation(targetEmail, targetName, { id: 1089, total: 250 }, [
@@ -406,10 +430,14 @@ router.get('/trigger-sample-previews', async (req, res) => {
       giftCardsCount: 2
     });
 
-    res.json({ success: true, message: `All 7 email templates dispatched to ${targetEmail}!` });
+    res.json({
+      success: true,
+      message: `Verified! All 7 email templates dispatched successfully to ${targetEmail} via ${conn.details.host}!`,
+      details: conn.details
+    });
   } catch (error) {
     console.error('Test email error:', error);
-    res.status(500).json({ message: 'Failed to send test emails', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to send test emails', error: error.message });
   }
 });
 

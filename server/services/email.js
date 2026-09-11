@@ -1,32 +1,47 @@
-import nodemailer from 'nodemailer';
+function cleanEnv(val) {
+  if (!val) return '';
+  let s = String(val).trim();
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    s = s.slice(1, -1).trim();
+  }
+  return s;
+}
 
-let transporterPromise = null;
-
-export const ADMIN_ALERT_EMAIL = process.env.ADMIN_ALERT_EMAIL || 'hannanbrice1@gmail.com';
+export const ADMIN_ALERT_EMAIL = cleanEnv(process.env.ADMIN_ALERT_EMAIL) || 'hannanbrice1@gmail.com';
+export const APP_URL = cleanEnv(process.env.APP_URL) || 'https://danandshaytour.online';
+export const FROM_HEADER = cleanEnv(process.env.SMTP_FROM) || '"Dan + Shay Official" <orders@danandshaytour.online>';
 
 /**
- * Creates or retrieves the email transporter.
- * If custom SMTP environment variables (SMTP_HOST, SMTP_USER, SMTP_PASS) are provided,
- * it uses your domain's live mail server. Otherwise, it falls back to Ethereal test accounts.
+ * Creates or retrieves the email transporter with TLS resilience
  */
-async function getTransporter() {
+export async function getTransporter() {
+  const host = cleanEnv(process.env.SMTP_HOST) || (process.env.SMTP_USER ? 'mail.privateemail.com' : null);
+  const user = cleanEnv(process.env.SMTP_USER);
+  const pass = cleanEnv(process.env.SMTP_PASS);
+  const port = parseInt(cleanEnv(process.env.SMTP_PORT) || '465', 10);
+  const secure = port === 465 || cleanEnv(process.env.SMTP_SECURE) === 'true';
+
+  if (host && user && pass && pass !== 'YOUR_EMAIL_PASSWORD_HERE') {
+    if (!transporterPromise) {
+      console.log(`[Email System] Initializing live SMTP transporter: ${host}:${port} as ${user}`);
+      const transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure,
+        auth: { user, pass },
+        tls: {
+          rejectUnauthorized: false
+        }
+      });
+      transporterPromise = Promise.resolve(transporter);
+    }
+    return transporterPromise;
+  }
+
+  // If live credentials are missing or still placeholder, fallback to Ethereal
   if (!transporterPromise) {
     transporterPromise = (async () => {
-      // 1. Live Custom Domain SMTP (IONOS, Porkbun, Google Workspace, PrivateEmail, SendGrid, etc.)
-      if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-        console.log(`[Email System] Connecting to live SMTP server: ${process.env.SMTP_HOST}:${process.env.SMTP_PORT || 587}`);
-        return nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: parseInt(process.env.SMTP_PORT || '587', 10),
-          secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-          },
-        });
-      }
-
-      // 2. Fallback: Ethereal test account for development and pre-domain testing
+      console.warn('[Email System] Live SMTP_PASS missing or placeholder; initializing Ethereal sandbox test account');
       try {
         const testAccount = await nodemailer.createTestAccount();
         console.log(`[Email System] Ethereal test inbox active (${testAccount.user})`);
@@ -40,7 +55,7 @@ async function getTransporter() {
           },
         });
       } catch (e) {
-        console.log('[Email System] Test account offline; falling back to console logger');
+        console.error('[Email System] Test account offline; email logging fallback');
         return null;
       }
     })();
@@ -48,8 +63,49 @@ async function getTransporter() {
   return transporterPromise;
 }
 
-export const APP_URL = process.env.APP_URL || 'https://danandshaytour.online';
-const FROM_HEADER = process.env.SMTP_FROM || '"Dan + Shay Official" <orders@danandshaytour.online>';
+/**
+ * Verify SMTP connection and return diagnostics
+ */
+export async function verifySmtpConnection() {
+  const host = cleanEnv(process.env.SMTP_HOST) || 'mail.privateemail.com';
+  const user = cleanEnv(process.env.SMTP_USER);
+  const pass = cleanEnv(process.env.SMTP_PASS);
+  const port = parseInt(cleanEnv(process.env.SMTP_PORT) || '465', 10);
+  const secure = port === 465 || cleanEnv(process.env.SMTP_SECURE) === 'true';
+
+  if (!user || !pass || pass === 'YOUR_EMAIL_PASSWORD_HERE') {
+    return {
+      connected: false,
+      configured: false,
+      message: 'SMTP credentials are not fully configured in Render. SMTP_PASS is either missing or still set to the placeholder "YOUR_EMAIL_PASSWORD_HERE".',
+      details: { host, port, user: user || '(empty)', isPlaceholder: pass === 'YOUR_EMAIL_PASSWORD_HERE' }
+    };
+  }
+
+  try {
+    const t = nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: { user, pass },
+      tls: { rejectUnauthorized: false }
+    });
+    await t.verify();
+    return {
+      connected: true,
+      configured: true,
+      message: `Authentication successful! Connected to ${host}:${port} as ${user}.`,
+      details: { host, port, user, secure }
+    };
+  } catch (err) {
+    return {
+      connected: false,
+      configured: true,
+      message: `SMTP Mail Server Error: ${err.message}`,
+      details: { host, port, user, code: err.code || err.responseCode, command: err.command }
+    };
+  }
+}
 
 // Global Luxury Styling for all Dan + Shay HTML Emails
 const baseStyles = `

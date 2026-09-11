@@ -10,6 +10,21 @@ const AdminDashboard = () => {
   const [testEmail, setTestEmail] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailStatus, setEmailStatus] = useState(null);
+  const [checkingSmtp, setCheckingSmtp] = useState(false);
+  const [smtpDiagnostics, setSmtpDiagnostics] = useState(null);
+
+  const handleCheckSmtp = async () => {
+    setCheckingSmtp(true);
+    setSmtpDiagnostics(null);
+    try {
+      const res = await api.get('/admin/smtp-status');
+      setSmtpDiagnostics(res.data);
+    } catch (err) {
+      setSmtpDiagnostics({ connected: false, message: err.response?.data?.message || err.message });
+    } finally {
+      setCheckingSmtp(false);
+    }
+  };
 
   // Change password modal state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -245,6 +260,31 @@ const AdminDashboard = () => {
             <p className="text-sm text-gray-300 mt-1 max-w-2xl">
               Dispatch live sample previews of all 7 luxury email templates (Registration Welcome, Turnstile Ticket Passes, VIP Meet & Greet Credentials, 3D Fan Cards, Order Receipts, and Admin Alerts) directly to your inbox.
             </p>
+            <div className="mt-3 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleCheckSmtp}
+                disabled={checkingSmtp}
+                className="text-xs bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 rounded-md font-semibold text-gray-200 transition-all flex items-center gap-1.5"
+              >
+                <span>🔍</span>
+                <span>{checkingSmtp ? 'Checking Mail Server...' : 'Test Mail Server Connection'}</span>
+              </button>
+              {smtpDiagnostics && (
+                <span className={`text-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1 ${
+                  smtpDiagnostics.connected ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                }`}>
+                  <span>{smtpDiagnostics.connected ? '✓ Mail Server Online' : '⚠️ Connection Issue'}</span>
+                </span>
+              )}
+            </div>
+            {smtpDiagnostics && (
+              <div className={`mt-2 p-2.5 rounded-lg text-xs font-mono max-w-xl ${
+                smtpDiagnostics.connected ? 'bg-green-950/40 text-green-200 border border-green-800' : 'bg-amber-950/50 text-amber-200 border border-amber-800'
+              }`}>
+                {smtpDiagnostics.message}
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleSendTestEmails} className="w-full md:w-auto flex flex-col sm:flex-row items-center gap-3">
