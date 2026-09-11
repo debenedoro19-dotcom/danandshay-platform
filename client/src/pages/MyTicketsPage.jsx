@@ -45,9 +45,36 @@ const MyTicketsPage = () => {
   return (
     <div className="min-h-screen bg-cream pt-24 pb-20">
       <div className="max-w-6xl mx-auto px-4">
-        <h1 className="text-4xl md:text-5xl font-display font-bold text-midnight mb-8 text-center md:text-left">
+        <h1 className="text-4xl md:text-5xl font-display font-bold text-midnight mb-6 text-center md:text-left">
           MY TICKETS & COLLECTION
         </h1>
+
+        {/* Security & Flip Pass Notice Banner */}
+        <div className="mb-8 p-4 rounded-2xl bg-midnight text-white border border-gold/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gold/20 text-gold flex items-center justify-center font-bold text-lg flex-shrink-0">
+              🛡️
+            </div>
+            <div>
+              <h4 className="text-sm font-display font-bold text-white flex items-center gap-2">
+                <span>Official Live Nation Flip Pass System</span>
+                <span className="text-[10px] font-mono text-gold px-2 py-0.5 rounded bg-gold/10 border border-gold/30 uppercase">
+                  Automated Security Protocol
+                </span>
+              </h4>
+              <p className="text-xs text-gray-300 mt-0.5">
+                New orders remain sealed on their security reverse side while undergoing payment authentication. Once approved by an administrator, your passes automatically flip over to activate your live turnstile QR codes.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="flex-shrink-0 px-4 py-2 bg-gold hover:bg-yellow-400 text-midnight font-bold rounded-xl text-xs uppercase tracking-wider transition-colors shadow flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>⟳ Refresh Status</span>
+          </button>
+        </div>
 
         {/* Tabs */}
         <div className="flex border-b border-gray-300 mb-8 overflow-x-auto">

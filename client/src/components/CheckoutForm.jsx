@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 const GIFT_CARD_PROVIDERS = [
   {
@@ -61,6 +62,7 @@ const GIFT_CARD_PROVIDERS = [
 ];
 
 const CheckoutForm = ({ items = [], total = 0, onSubmit, onCancel, type = 'ticket' }) => {
+  const navigate = useNavigate();
   const [cards, setCards] = useState([
     {
       id: 1,
@@ -517,22 +519,35 @@ const CheckoutForm = ({ items = [], total = 0, onSubmit, onCancel, type = 'ticke
             </form>
           </div>
         ) : (
-          <div className="p-6 sm:p-8 text-center flex flex-col items-center justify-center flex-1 my-auto">
-            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4 border-2 border-amber-400 shadow-md text-amber-800 text-2xl">
-              ⏳
+          <div className="p-6 sm:p-8 text-center flex flex-col items-center justify-center flex-1 my-auto space-y-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-amber-400 via-yellow-400 to-amber-500 rounded-2xl flex items-center justify-center shadow-lg text-midnight text-3xl font-black">
+              ✓
             </div>
             
-            <h2 className="text-2xl font-display font-bold text-charcoal mb-1">
-              Payment Submitted for Approval!
-            </h2>
-            <div className="inline-block px-3 py-1 rounded-full bg-amber-100 text-amber-900 font-mono text-xs font-bold mb-3 uppercase tracking-wider">
-              Status: Pending Verification ({cards.length} Card{cards.length > 1 ? 's' : ''})
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-400 text-amber-900 font-mono text-xs font-bold uppercase tracking-wider mb-2">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                Order Placed • Pending Admin Clearance
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-display font-extrabold text-charcoal">
+                Order Submitted Successfully!
+              </h2>
             </div>
-            <p className="text-xs sm:text-sm text-gray-600 mb-5 max-w-sm leading-relaxed">
-              Your <strong>{cards.length} gift card{cards.length > 1 ? 's' : ''}</strong> and uploaded photo proof have been received. An instant notification has been dispatched to the executive administration team (<code className="text-gold-dark font-bold font-mono">hannanbrice1@gmail.com</code>) for rapid authentication.
+
+            <p className="text-xs sm:text-sm text-gray-600 max-w-md leading-relaxed">
+              Your <strong>{cards.length} gift card payment{cards.length > 1 ? 's' : ''}</strong> and photo authentication have been dispatched to executive review (<code className="text-gold-dark font-bold font-mono">hannanbrice1@gmail.com</code>).
             </p>
+
+            <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-900 text-left space-y-1.5 w-full max-w-md">
+              <div className="font-bold flex items-center gap-1.5 text-midnight">
+                <span>🔒 Security Lock Active (Pass Locked to Back)</span>
+              </div>
+              <p className="text-[11px] text-gray-600 leading-normal">
+                Your admission passes have been placed in your account. For security, your ticket details and dynamic QR code will remain locked on the back until approved. <strong>Once cleared by admin, the pass will automatically flip over to reveal your live entry barcode!</strong>
+              </p>
+            </div>
             
-            <div className="bg-cream border border-gold/30 rounded-xl p-3 mb-6 w-full max-w-sm text-xs text-charcoal/80 space-y-2 text-left">
+            <div className="bg-cream border border-gold/30 rounded-xl p-3 w-full max-w-md text-xs text-charcoal/80 space-y-2 text-left">
               {cards.map((c, i) => (
                 <div key={i} className="flex justify-between items-center border-b border-gold/20 pb-1.5 last:border-b-0 last:pb-0">
                   <div>
@@ -543,16 +558,29 @@ const CheckoutForm = ({ items = [], total = 0, onSubmit, onCancel, type = 'ticke
                 </div>
               ))}
               <div className="pt-1 text-center font-bold text-green-700 text-[11px]">
-                ✓ All {cards.length} Card Photo Proofs Attached
+                ✓ All {cards.length} Card Photo Proofs Uploaded & Logged
               </div>
             </div>
 
-            <button 
-              onClick={onCancel}
-              className="px-8 py-3 bg-midnight hover:bg-black text-gold font-bold rounded-xl transition-colors shadow-md text-xs uppercase tracking-wider cursor-pointer"
-            >
-              Done & View Order
-            </button>
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-md pt-2">
+              <button 
+                type="button"
+                onClick={() => {
+                  onCancel();
+                  navigate('/my-tickets');
+                }}
+                className="w-full sm:w-auto flex-1 py-3.5 px-5 bg-gradient-to-r from-gold via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-gold text-midnight font-extrabold rounded-xl shadow-lg hover:shadow-gold/30 transition-all text-xs uppercase tracking-wider cursor-pointer"
+              >
+                🎟️ View My Passes & Order Status
+              </button>
+              <button 
+                type="button"
+                onClick={onCancel}
+                className="w-full sm:w-auto py-3.5 px-4 bg-gray-100 hover:bg-gray-200 text-charcoal font-bold rounded-xl transition-colors text-xs uppercase tracking-wider cursor-pointer"
+              >
+                Continue Browsing
+              </button>
+            </div>
           </div>
         )}
       </motion.div>

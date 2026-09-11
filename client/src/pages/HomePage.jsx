@@ -29,7 +29,6 @@ const HomePage = () => {
   const handleCheckoutSubmit = async (paymentData) => {
     if (!checkoutCard) return;
     await api.post('/fancards/purchase', { cardId: checkoutCard.id, ...paymentData });
-    navigate('/fan-cards');
   };
 
   useEffect(() => {

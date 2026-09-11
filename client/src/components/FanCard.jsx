@@ -6,7 +6,8 @@ const FanCard = ({ card, owned = false, onPurchase }) => {
   // Unpurchased cards only display the front face.
   const [isFlipped, setIsFlipped] = useState(false);
 
-  const { id, title, description, image_url, rarity, price, total_supply, remaining } = card;
+  const { id, title, description, image_url, rarity, price, total_supply, remaining, order_status } = card;
+  const isPending = owned && (order_status === 'pending_approval' || card.status === 'pending_approval');
 
   // Tier design configurations
   const isObsidian = rarity?.toLowerCase() === 'obsidian' || title?.toLowerCase().includes('obsidian');
@@ -109,9 +110,16 @@ const FanCard = ({ card, owned = false, onPurchase }) => {
                 {rarity} Tier
               </span>
               {owned && (
-                <span className="text-[9px] font-bold text-green-800 bg-green-200/80 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  Active Pass ✓
-                </span>
+                isPending ? (
+                  <span className="text-[9px] font-bold text-amber-900 bg-amber-200/90 px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-ping"></span>
+                    Pending Clearance 🔒
+                  </span>
+                ) : (
+                  <span className="text-[9px] font-bold text-green-800 bg-green-200/80 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Active Pass ✓
+                  </span>
+                )
               )}
             </div>
           </div>
@@ -287,13 +295,19 @@ const FanCard = ({ card, owned = false, onPurchase }) => {
           <div className="pt-3 border-t border-white/10 mt-auto">
             {owned ? (
               <div className="space-y-2">
-                <div className="w-full py-2.5 bg-green-500/20 text-green-400 border border-green-500/50 rounded-xl font-bold text-center text-xs tracking-wider uppercase">
-                  Pass Active in Your Vault ✓
-                </div>
+                {isPending ? (
+                  <div className="w-full py-2.5 bg-amber-500/20 text-amber-300 border border-amber-500/50 rounded-xl font-bold text-center text-xs tracking-wider uppercase">
+                    🔒 Pending Admin Verification
+                  </div>
+                ) : (
+                  <div className="w-full py-2.5 bg-green-500/20 text-green-400 border border-green-500/50 rounded-xl font-bold text-center text-xs tracking-wider uppercase">
+                    Pass Active in Your Vault ✓
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => setIsFlipped(false)}
-                  className="w-full py-1.5 text-center text-xs text-gold hover:underline font-mono"
+                  className="w-full py-1.5 text-center text-xs text-gold hover:underline font-mono cursor-pointer"
                 >
                   View Your Metallic Card Face ↶
                 </button>
