@@ -35,6 +35,9 @@ export async function getTransporter() {
         port,
         secure,
         auth: { user, pass },
+        connectionTimeout: 8000,
+        greetingTimeout: 8000,
+        socketTimeout: 8000,
         tls: {
           rejectUnauthorized: false
         }
@@ -130,6 +133,9 @@ export async function verifySmtpConnection() {
       port,
       secure,
       auth: { user, pass },
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 8000,
       tls: { rejectUnauthorized: false }
     });
     await t.verify();
@@ -142,10 +148,14 @@ export async function verifySmtpConnection() {
       details
     };
   } catch (err) {
+    let msg = `SMTP Mail Server Error: ${err.message}`;
+    if (err.code === 'ETIMEDOUT') {
+      msg = `Connection timed out (ETIMEDOUT). Render Free Tier blocks outbound SMTP ports (465/587). To send via Namecheap Private Email, upgrade Render to Starter ($7), or use an HTTP Email API like Resend/Brevo.`;
+    }
     return {
       connected: false,
       configured: true,
-      message: `SMTP Mail Server Error: ${err.message}`,
+      message: msg,
       details: { ...details, code: err.code || err.responseCode, command: err.command }
     };
   }
