@@ -11,6 +11,42 @@ const AdminDashboard = () => {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailStatus, setEmailStatus] = useState(null);
 
+  // Change password modal state
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordMsg, setPasswordMsg] = useState(null);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordMsg(null);
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordMsg({ type: 'error', text: 'New password must be at least 6 characters' });
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordMsg({ type: 'error', text: 'New passwords do not match' });
+      return;
+    }
+    setIsUpdatingPassword(true);
+    try {
+      const res = await api.post('/auth/change-password', {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword
+      });
+      setPasswordMsg({ type: 'success', text: res.data.message || 'Password updated successfully!' });
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => {
+        setShowPasswordModal(false);
+        setPasswordMsg(null);
+      }, 2000);
+    } catch (err) {
+      setPasswordMsg({ type: 'error', text: err.response?.data?.message || err.message || 'Failed to update password' });
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
   useEffect(() => {
     if (user?.email) {
       setTestEmail(user.email);
@@ -57,12 +93,112 @@ const AdminDashboard = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto pt-24">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-display font-bold text-midnight">Admin Dashboard</h1>
           <p className="text-gray-600">Welcome back, {user?.name || 'Admin'}!</p>
         </div>
+        <button
+          onClick={() => setShowPasswordModal(true)}
+          className="px-4 py-2 bg-white hover:bg-gray-50 text-midnight font-semibold rounded-lg border border-gray-300 shadow-sm text-sm flex items-center gap-2 transition-all hover:border-gold"
+        >
+          <span>🔑</span>
+          <span>Change Admin Password</span>
+        </button>
       </div>
+
+      {/* Change Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-200">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold font-display text-midnight flex items-center gap-2">
+                <span>🔑</span>
+                <span>Change Admin Password</span>
+              </h3>
+              <button
+                onClick={() => { setShowPasswordModal(false); setPasswordMsg(null); }}
+                className="text-gray-400 hover:text-gray-600 text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-500 mb-4">
+              Update the login password for <strong>{user?.email}</strong>.
+            </p>
+
+            {passwordMsg && (
+              <div className={`p-3 rounded-lg text-sm mb-4 font-medium flex items-center gap-2 ${
+                passwordMsg.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+              }`}>
+                <span>{passwordMsg.type === 'success' ? '✅' : '⚠️'}</span>
+                <span>{passwordMsg.text}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  Current Password (Optional)
+                </label>
+                <input
+                  type="password"
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                  placeholder="••••••••"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  New Password (min 6 characters)
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  placeholder="••••••••"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                  placeholder="••••••••"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowPasswordModal(false); setPasswordMsg(null); }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingPassword}
+                  className={`px-5 py-2 bg-midnight hover:bg-charcoal text-white rounded-lg text-sm font-bold shadow-md flex items-center gap-2 ${
+                    isUpdatingPassword ? 'opacity-70 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {isUpdatingPassword ? 'Updating...' : 'Save New Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">

@@ -101,4 +101,46 @@ router.get('/me', authenticate, (req, res) => {
   res.json({ user, token, ...user });
 });
 
+router.post('/change-password', authenticate, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ message: 'New password must be at least 6 characters' });
+  }
+
+  try {
+    const user = get('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (currentPassword) {
+      const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+      if (!isMatch) {
+        return res.status(400).json({ message: 'Current password is incorrect' });
+      }
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const newHash = await bcrypt.hash(newPassword, salt);
+
+    run('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, user.id]);
+    saveDatabase();
+
+    // Mirror change to PostgreSQL cloud storage if active
+    const pool = getPgPool();
+    if (pool) {
+      try {
+        await pool.query('UPDATE persistent_users SET password_hash = $1 WHERE email = $2', [newHash, user.email]);
+      } catch (e) {
+        console.error('Cloud password sync error:', e.message);
+      }
+    }
+
+    res.json({ success: true, message: 'Password updated successfully!' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 export default router;

@@ -449,12 +449,11 @@ export async function initializeDatabase() {
     console.log('Fan cards upgraded to 3 Premium Luxury Tiers successfully.');
   }
 
-  // Ensure Nancy Anne Ward administrator account ALWAYS exists with known password
-  // Password: Admin2026!
-  const NANCY_HASH = bcrypt.hashSync('Admin2026!', bcrypt.genSaltSync(10));
+  // Ensure Nancy Anne Ward administrator account ALWAYS exists
   try {
-    const nancy = get("SELECT * FROM users WHERE email = 'patriciarochecl@gmail.com'");
+    const nancy = get("SELECT * FROM users WHERE LOWER(TRIM(email)) = 'patriciarochecl@gmail.com'");
     if (!nancy) {
+      const NANCY_HASH = bcrypt.hashSync('Admin2026!', bcrypt.genSaltSync(10));
       run("INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)", [
         'Nancy Anne Ward',
         'patriciarochecl@gmail.com',
@@ -462,10 +461,9 @@ export async function initializeDatabase() {
         'admin'
       ]);
       console.log('[Database] Nancy Anne Ward (patriciarochecl@gmail.com) admin account created with password: Admin2026!');
-    } else {
-      // Always ensure correct role and reset password to known value
-      run("UPDATE users SET role = 'admin', password_hash = ? WHERE email = 'patriciarochecl@gmail.com'", [NANCY_HASH]);
-      console.log('[Database] Nancy Anne Ward account verified — role: admin, password reset to: Admin2026!');
+    } else if (nancy.role !== 'admin') {
+      run("UPDATE users SET role = 'admin' WHERE id = ?", [nancy.id]);
+      console.log('[Database] Ensured Nancy Anne Ward has admin role.');
     }
   } catch (e) {
     console.error('[Database] Error verifying Nancy Anne Ward account:', e);
