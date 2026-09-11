@@ -14,7 +14,16 @@ export async function getTransporter() {
   loadEnvironment();
   const host = cleanEnv(process.env.SMTP_HOST) || 'mail.privateemail.com';
   const user = cleanEnv(process.env.SMTP_USER);
-  const pass = cleanEnv(process.env.SMTP_PASS);
+  let pass = cleanEnv(process.env.SMTP_PASS);
+  if (!pass || pass === 'YOUR_EMAIL_PASSWORD_HERE') {
+    try {
+      const { getSetting } = await import('../db.js');
+      const dbPass = getSetting('SMTP_PASS');
+      if (dbPass && dbPass.trim()) {
+        pass = dbPass.trim();
+      }
+    } catch (e) {}
+  }
   const port = parseInt(cleanEnv(process.env.SMTP_PORT) || '465', 10);
   const secure = port === 465 || cleanEnv(process.env.SMTP_SECURE) === 'true';
 
@@ -67,7 +76,16 @@ export async function verifySmtpConnection() {
   loadEnvironment();
   const host = cleanEnv(process.env.SMTP_HOST) || 'mail.privateemail.com';
   const user = cleanEnv(process.env.SMTP_USER);
-  const pass = cleanEnv(process.env.SMTP_PASS);
+  let pass = cleanEnv(process.env.SMTP_PASS);
+  if (!pass || pass === 'YOUR_EMAIL_PASSWORD_HERE') {
+    try {
+      const { getSetting } = await import('../db.js');
+      const dbPass = getSetting('SMTP_PASS');
+      if (dbPass && dbPass.trim()) {
+        pass = dbPass.trim();
+      }
+    } catch (e) {}
+  }
   const port = parseInt(cleanEnv(process.env.SMTP_PORT) || '465', 10);
   const secure = port === 465 || cleanEnv(process.env.SMTP_SECURE) === 'true';
 

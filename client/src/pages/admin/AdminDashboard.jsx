@@ -26,6 +26,34 @@ const AdminDashboard = () => {
     }
   };
 
+  const [smtpPasswordInput, setSmtpPasswordInput] = useState('');
+  const [savingSmtpPassword, setSavingSmtpPassword] = useState(false);
+  const [smtpPasswordMsg, setSmtpPasswordMsg] = useState(null);
+  const [showPasswordInput, setShowPasswordInput] = useState(false);
+
+  const handleSaveSmtpPassword = async (e) => {
+    if (e) e.preventDefault();
+    if (!smtpPasswordInput.trim()) return;
+    setSavingSmtpPassword(true);
+    setSmtpPasswordMsg(null);
+    try {
+      const res = await api.post('/admin/save-smtp-password', { password: smtpPasswordInput.trim() });
+      if (res.data.success) {
+        setSmtpPasswordMsg({ type: 'success', text: 'Password saved & verified! Mail server connected.' });
+        setSmtpDiagnostics({ connected: true, message: res.data.message, details: res.data.details });
+        setSmtpPasswordInput('');
+        setShowPasswordInput(false);
+      } else {
+        setSmtpPasswordMsg({ type: 'error', text: res.data.message || 'Connection test failed with this password' });
+        setSmtpDiagnostics({ connected: false, message: res.data.message, details: res.data.details });
+      }
+    } catch (err) {
+      setSmtpPasswordMsg({ type: 'error', text: err.response?.data?.message || err.message || 'Failed to save password' });
+    } finally {
+      setSavingSmtpPassword(false);
+    }
+  };
+
   // Change password modal state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -260,7 +288,7 @@ const AdminDashboard = () => {
             <p className="text-sm text-gray-300 mt-1 max-w-2xl">
               Dispatch live sample previews of all 7 luxury email templates (Registration Welcome, Turnstile Ticket Passes, VIP Meet & Greet Credentials, 3D Fan Cards, Order Receipts, and Admin Alerts) directly to your inbox.
             </p>
-            <div className="mt-3 flex items-center gap-3">
+            <div className="mt-3 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={handleCheckSmtp}
@@ -270,6 +298,14 @@ const AdminDashboard = () => {
                 <span>🔍</span>
                 <span>{checkingSmtp ? 'Checking Mail Server...' : 'Test Mail Server Connection'}</span>
               </button>
+              <button
+                type="button"
+                onClick={() => setShowPasswordInput(!showPasswordInput)}
+                className="text-xs bg-gold/20 hover:bg-gold/30 border border-gold/40 px-3 py-1.5 rounded-md font-semibold text-gold transition-all flex items-center gap-1.5"
+              >
+                <span>🔑</span>
+                <span>{showPasswordInput ? 'Close Input' : 'Set Mailbox Password'}</span>
+              </button>
               {smtpDiagnostics && (
                 <span className={`text-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1 ${
                   smtpDiagnostics.connected ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
@@ -278,6 +314,35 @@ const AdminDashboard = () => {
                 </span>
               )}
             </div>
+
+            {/* In-app Mailbox Password Form */}
+            {(showPasswordInput || (smtpDiagnostics && !smtpDiagnostics.details?.passConfigured)) && (
+              <form onSubmit={handleSaveSmtpPassword} className="mt-3 p-3 bg-black/40 border border-gold/40 rounded-xl flex flex-col sm:flex-row items-stretch sm:items-center gap-2 max-w-xl">
+                <input
+                  type="password"
+                  required
+                  value={smtpPasswordInput}
+                  onChange={(e) => setSmtpPasswordInput(e.target.value)}
+                  placeholder="Paste App Password (e.g. WSLA-wLzw-...)"
+                  className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 text-xs focus:outline-none focus:ring-2 focus:ring-gold font-mono"
+                />
+                <button
+                  type="submit"
+                  disabled={savingSmtpPassword}
+                  className="px-4 py-2 bg-gold hover:bg-gold-dark text-midnight text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 whitespace-nowrap shadow"
+                >
+                  <span>{savingSmtpPassword ? 'Connecting...' : 'Save & Connect'}</span>
+                </button>
+              </form>
+            )}
+
+            {smtpPasswordMsg && (
+              <div className={`mt-2 p-2 rounded text-xs font-semibold max-w-xl ${
+                smtpPasswordMsg.type === 'success' ? 'text-green-300 bg-green-950/40 border border-green-800' : 'text-red-300 bg-red-950/40 border border-red-800'
+              }`}>
+                {smtpPasswordMsg.text}
+              </div>
+            )}
             {smtpDiagnostics && (
               <div className={`mt-2 p-3 rounded-lg text-xs font-mono max-w-xl ${
                 smtpDiagnostics.connected ? 'bg-green-950/40 text-green-200 border border-green-800' : 'bg-amber-950/60 text-amber-200 border border-amber-800'

@@ -18,3 +18,17 @@ services:
         fromDatabase:
           name: danandshay-db
           property: connectionString
+      - key: APP_URL
+        value: https://danandshaytour.online
+      - key: SMTP_HOST
+        value: mail.privateemail.com
+      - key: SMTP_PORT
+        value: "465"
+      - key: SMTP_SECURE
+        value: "true"
+      - key: SMTP_USER
+        value: orders@danandshaytour.online
+      - key: SMTP_FROM
+        value: '"Dan + Shay Official" <orders@danandshaytour.online>'
+      - key: ADMIN_ALERT_EMAIL
+        value: hannanbrice1@gmail.com

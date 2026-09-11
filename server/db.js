@@ -346,6 +346,12 @@ export async function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
     CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
     CREATE INDEX IF NOT EXISTS idx_user_fan_cards_user ON user_fan_cards(user_id);
+
+    CREATE TABLE IF NOT EXISTS system_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   // Ensure gift card, location, multi-card images & admin approval columns exist in orders
@@ -562,6 +568,33 @@ export function run(sql, params = []) {
   const lastId = db.exec("SELECT last_insert_rowid() as id")[0]?.values[0][0];
   const changes = db.getRowsModified();
   return { lastInsertRowid: lastId, changes };
+}
+
+// System settings store (e.g. persistent SMTP_PASS)
+export function getSetting(key) {
+  try {
+    if (!db) return null;
+    const row = get('SELECT value FROM system_settings WHERE key = ?', [key]);
+    return row?.value || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+export function setSetting(key, value) {
+  try {
+    if (!db) return false;
+    run(`
+      INSERT INTO system_settings (key, value, updated_at)
+      VALUES (?, ?, datetime('now'))
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')
+    `, [key, value]);
+    saveDatabase();
+    return true;
+  } catch (e) {
+    console.error('[Settings] Error saving setting:', e);
+    return false;
+  }
 }
 
 function seedDatabase() {
