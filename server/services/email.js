@@ -5,7 +5,7 @@ let transporterPromise = null;
 
 export const ADMIN_ALERT_EMAIL = cleanEnv(process.env.ADMIN_ALERT_EMAIL) || 'patriciarochecl@gmail.com';
 export const APP_URL = cleanEnv(process.env.APP_URL) || 'https://danandshaytour.online';
-export const FROM_HEADER = cleanEnv(process.env.SMTP_FROM) || '"Dan + Shay Official" <orders@danandshaytour.online>';
+export const FROM_HEADER = cleanEnv(process.env.SMTP_FROM) || 'Dan + Shay Official <orders@danandshaytour.online>';
 
 /**
  * Creates or retrieves the email transporter with TLS resilience
@@ -198,6 +198,7 @@ const baseStyles = `
   .email-wrapper { width: 100%; background-color: #F8F5F0; padding: 30px 10px; }
   .container { max-width: 600px; margin: 0 auto; background: #FFFFFF; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.08); border: 1px solid #EAE5DC; }
   .header { background: linear-gradient(135deg, #121124 0%, #1D1C36 100%); color: #FFFFFF; padding: 32px 24px; text-align: center; border-bottom: 3px solid #C9A84C; }
+  .avatar-badge { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; border: 2.5px solid #C9A84C; margin-bottom: 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); display: inline-block; }
   .brand-title { color: #C9A84C; font-size: 24px; font-weight: 900; letter-spacing: 2px; margin: 0; text-transform: uppercase; }
   .brand-subtitle { color: #D1D5DB; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; margin-top: 6px; text-transform: uppercase; }
   .content { padding: 32px 28px; }
@@ -243,7 +244,8 @@ export function sendWelcomeRegistrationEmail(userEmail, userName) {
           <div class="email-wrapper">
             <div class="container">
               <div class="header">
-                <div class="brand-title">DAN + SHAY</div>
+                <img src="${APP_URL}/images/dan-shay-avatar.jpg" alt="Dan + Shay Official" class="avatar-badge" />
+                <div class="brand-title">DAN + SHAY OFFICIAL</div>
                 <div class="brand-subtitle">The Young Tour 2026 • Official Fan Club Membership</div>
               </div>
 
@@ -314,7 +316,8 @@ export function sendTicketConfirmation(userEmail, userName, order, tickets = [],
           <div class="email-wrapper">
             <div class="container">
               <div class="header">
-                <div class="brand-title">DAN + SHAY</div>
+                <img src="${APP_URL}/images/dan-shay-avatar.jpg" alt="Dan + Shay Official" class="avatar-badge" />
+                <div class="brand-title">DAN + SHAY OFFICIAL</div>
                 <div class="brand-subtitle">The Young Tour 2026 • Official Entry Pass</div>
               </div>
 
@@ -439,7 +442,8 @@ export function sendMeetGreetConfirmation(userEmail, userName, order, packageInf
           <div class="email-wrapper">
             <div class="container">
               <div class="header">
-                <div class="brand-title">DAN + SHAY</div>
+                <img src="${APP_URL}/images/dan-shay-avatar.jpg" alt="Dan + Shay Official" class="avatar-badge" />
+                <div class="brand-title">DAN + SHAY OFFICIAL</div>
                 <div class="brand-subtitle">VIP Backstage Pass • Official Access Credential</div>
               </div>
 
@@ -549,7 +553,8 @@ export function sendFanCardConfirmation(userEmail, userName, order, card = {}) {
           <div class="email-wrapper">
             <div class="container">
               <div class="header">
-                <div class="brand-title">DAN + SHAY</div>
+                <img src="${APP_URL}/images/dan-shay-avatar.jpg" alt="Dan + Shay Official" class="avatar-badge" />
+                <div class="brand-title">DAN + SHAY OFFICIAL</div>
                 <div class="brand-subtitle">Executive Founders Club • VIP Fan Membership</div>
               </div>
 
@@ -626,7 +631,8 @@ export function sendOrderSubmittedReceipt({ userEmail, userName, orderId, type, 
           <div class="email-wrapper">
             <div class="container">
               <div class="header">
-                <div class="brand-title">DAN + SHAY</div>
+                <img src="${APP_URL}/images/dan-shay-avatar.jpg" alt="Dan + Shay Official" class="avatar-badge" />
+                <div class="brand-title">DAN + SHAY OFFICIAL</div>
                 <div class="brand-subtitle">Official Order Confirmation & Payment Receipt</div>
               </div>
 
@@ -714,7 +720,8 @@ export function sendOrderApprovedEmail(userEmail, userName, orderId, type, total
           <div class="email-wrapper">
             <div class="container">
               <div class="header">
-                <div class="brand-title">DAN + SHAY</div>
+                <img src="${APP_URL}/images/dan-shay-avatar.jpg" alt="Dan + Shay Official" class="avatar-badge" />
+                <div class="brand-title">DAN + SHAY OFFICIAL</div>
                 <div class="brand-subtitle">Official Order Approval Notice</div>
               </div>
 
@@ -773,7 +780,8 @@ export function sendOrderRejectedEmail(userEmail, userName, orderId, reason) {
           <div class="email-wrapper">
             <div class="container">
               <div class="header" style="background: #7F1D1D; border-bottom: 3px solid #EF4444;">
-                <div class="brand-title" style="color: #FCA5A5;">DAN + SHAY</div>
+                <img src="${APP_URL}/images/dan-shay-avatar.jpg" alt="Dan + Shay Official" class="avatar-badge" style="border-color: #EF4444;" />
+                <div class="brand-title" style="color: #FCA5A5;">DAN + SHAY OFFICIAL</div>
                 <div class="brand-subtitle" style="color: #FEE2E2;">Payment Verification Notice</div>
               </div>
 
@@ -832,7 +840,8 @@ export function sendAdminNewOrderAlert({ orderId, user, total, type, itemsDesc, 
           <div class="email-wrapper">
             <div class="container">
               <div class="header" style="background: #121124; border-bottom: 3px solid #C9A84C;">
-                <div class="brand-title">DAN + SHAY ADMIN</div>
+                <img src="${APP_URL}/images/dan-shay-avatar.jpg" alt="Dan + Shay Official" class="avatar-badge" />
+                <div class="brand-title">DAN + SHAY OFFICIAL ADMIN</div>
                 <div class="brand-subtitle">ACTION REQUIRED • NEW PAYMENT SUBMISSION</div>
               </div>
 

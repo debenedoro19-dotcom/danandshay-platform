@@ -46,6 +46,12 @@ initializeDatabase().then(() => {
     res.status(404).json({ message: `API endpoint not found: ${req.method} ${req.originalUrl}` });
   });
 
+  // Serve Static Assets (images, avatar, favicon)
+  const clientPublic = path.join(__dirname, '../client/public');
+  if (fs.existsSync(clientPublic)) {
+    app.use(express.static(clientPublic));
+  }
+
   // Serve Frontend in Production / when client/dist exists
   if (fs.existsSync(clientDist)) {
     app.use(express.static(clientDist));
