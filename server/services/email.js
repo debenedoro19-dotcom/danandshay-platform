@@ -291,7 +291,6 @@ export function sendWelcomeRegistrationEmail(userEmail, userName) {
 
               <div class="footer">
                 <p>Dan + Shay • Official 2026 The Young Tour<br>Live Nation & Ticketmaster Certified Partner</p>
-                <p>Need support? Contact us anytime at <a href="mailto:support@danandshaytour.online">support@danandshaytour.online</a></p>
               </div>
             </div>
           </div>
@@ -416,7 +415,6 @@ export function sendTicketConfirmation(userEmail, userName, order, tickets = [],
 
               <div class="footer">
                 <p>Dan + Shay • Official 2026 The Young Tour<br>Live Nation & Ticketmaster Certified Partner</p>
-                <p>Need support? Contact us anytime at <a href="mailto:support@danandshaytour.online">support@danandshaytour.online</a></p>
                 <p style="font-size: 10px; color: #6B7280;">Order #${orderId} • Confidential Ticket Pass</p>
               </div>
             </div>
@@ -531,7 +529,6 @@ export function sendMeetGreetConfirmation(userEmail, userName, order, packageInf
 
               <div class="footer">
                 <p>Dan + Shay • Official VIP Backstage Guest Program</p>
-                <p>Questions about your VIP session? Reach out at <a href="mailto:vip@danandshaytour.online">vip@danandshaytour.online</a></p>
                 <p style="font-size: 10px; color: #6B7280;">VIP Pass #${orderId} • Non-Transferable • Photo ID Required</p>
               </div>
             </div>
@@ -614,7 +611,6 @@ export function sendFanCardConfirmation(userEmail, userName, order, card = {}) {
 
               <div class="footer">
                 <p>Dan + Shay • Founders Club Collector Program</p>
-                <p>Support: <a href="mailto:cards@danandshaytour.online">cards@danandshaytour.online</a></p>
               </div>
             </div>
           </div>
@@ -703,7 +699,6 @@ export function sendOrderSubmittedReceipt({ userEmail, userName, orderId, type, 
 
               <div class="footer">
                 <p>Dan + Shay • Official 2026 The Young Tour</p>
-                <p>Have questions? Email us at <a href="mailto:support@danandshaytour.online">support@danandshaytour.online</a></p>
                 <p style="font-size: 10px; color: #6B7280;">Order #${orderId} • Please retain for your records</p>
               </div>
             </div>
@@ -766,7 +761,6 @@ export function sendOrderApprovedEmail(userEmail, userName, orderId, type, total
 
               <div class="footer">
                 <p>Dan + Shay • Official 2026 The Young Tour</p>
-                <p>Support: <a href="mailto:support@danandshaytour.online">support@danandshaytour.online</a></p>
               </div>
             </div>
           </div>
@@ -825,7 +819,7 @@ export function sendOrderRejectedEmail(userEmail, userName, orderId, reason) {
               </div>
 
               <div class="footer">
-                <p>Dan + Shay Verification Desk • <a href="mailto:support@danandshaytour.online">support@danandshaytour.online</a></p>
+                <p>Dan + Shay Official Verification Desk</p>
               </div>
             </div>
           </div>
