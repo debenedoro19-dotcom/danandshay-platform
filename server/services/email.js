@@ -69,96 +69,143 @@ export async function getTransporter() {
       }
     })();
   }
-  return transporterPromise;
+  return transporterPromise;}
+
+export async function getResendApiKey() {
+  loadEnvironment();
+  let key = cleanEnv(process.env.RESEND_API_KEY);
+  if (!key) {
+    try {
+      const { getSetting } = await import('../db.js');
+      const dbKey = getSetting('RESEND_API_KEY');
+      if (dbKey && dbKey.trim()) key = dbKey.trim();
+    } catch (e) {}
+  }
+  return key;
+}
+
+export async function dispatchEmail({ to, subject, html, from }) {
+  const resendKey = await getResendApiKey();
+  const fromAddress = from || FROM_HEADER;
+
+  // 1. If Resend API Key is available, dispatch via Resend HTTP API (Port 443 - NEVER blocked by Render Free Tier!)
+  if (resendKey && resendKey.startsWith('re_')) {
+    try {
+      const payload = {
+        from: fromAddress,
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        html
+      };
+
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        if (result.message && (result.message.includes('domain') || result.message.includes('own email address'))) {
+          console.warn('[Resend] Fallback to onboarding@resend.dev...');
+          payload.from = 'Dan + Shay Official <onboarding@resend.dev>';
+          const retryRes = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${resendKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+          const retryResult = await retryRes.json();
+          if (retryRes.ok) {
+            console.log(`[Email System - Resend HTTP] Dispatched to ${to} (id: ${retryResult.id})`);
+            return { success: true, id: retryResult.id, provider: 'resend' };
+          }
+        }
+        throw new Error(result.message || 'Resend HTTP API error');
+      }
+
+      console.log(`[Email System - Resend HTTP] Dispatched to ${to} (id: ${result.id})`);
+      return { success: true, id: result.id, provider: 'resend' };
+    } catch (err) {
+      console.error('[Resend Dispatch Error]:', err.message);
+    }
+  }
+
+  // 2. Fallback to Nodemailer SMTP / Ethereal
+  try {
+    const t = await getTransporter();
+    if (t) {
+      const info = await t.sendMail({
+        from: fromAddress,
+        to,
+        subject,
+        html
+      });
+      console.log(`[Email System - SMTP] Dispatched to ${to}:`, info.messageId);
+      return { success: true, id: info.messageId, provider: 'smtp' };
+    }
+  } catch (err) {
+    console.error('[SMTP Dispatch Error]:', err.message);
+  }
+
+  console.log(`[Email System - Logged] Dispatched for ${to}: ${subject}`);
+  return { success: false, provider: 'none' };
 }
 
 /**
- * Verify SMTP connection and return diagnostics
+ * Verify Email connection (checks Resend HTTP API first, then SMTP fallback)
  */
-export async function verifySmtpConnection() {
+export async function verifyEmailConnection() {
   loadEnvironment();
-  const host = cleanEnv(process.env.SMTP_HOST) || 'mail.privateemail.com';
-  const user = cleanEnv(process.env.SMTP_USER);
-  let pass = cleanEnv(process.env.SMTP_PASS);
-  if (!pass || pass === 'YOUR_EMAIL_PASSWORD_HERE') {
+  const resendKey = await getResendApiKey();
+  if (resendKey && resendKey.startsWith('re_')) {
     try {
-      const { getSetting } = await import('../db.js');
-      const dbPass = getSetting('SMTP_PASS');
-      if (dbPass && dbPass.trim()) {
-        pass = dbPass.trim();
+      const res = await fetch('https://api.resend.com/api-keys', {
+        headers: { 'Authorization': `Bearer ${resendKey}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        return {
+          connected: true,
+          configured: true,
+          provider: 'resend',
+          message: 'Connected via Resend HTTP API! Port 443 active (Render port blocks bypassed).',
+          details: {
+            host: 'api.resend.com',
+            port: 443,
+            secure: true,
+            user: 'Resend API Key',
+            userConfigured: true,
+            passConfigured: true,
+            passLength: resendKey.length,
+            isPlaceholder: false
+          }
+        };
+      } else {
+        return {
+          connected: false,
+          configured: true,
+          provider: 'resend',
+          message: `Resend API Error: ${data.message || 'Invalid API key'}`,
+          details: { host: 'api.resend.com', port: 443, secure: true, user: 'Resend API Key' }
+        };
       }
-    } catch (e) {}
-  }
-  const port = parseInt(cleanEnv(process.env.SMTP_PORT) || '465', 10);
-  const secure = port === 465 || cleanEnv(process.env.SMTP_SECURE) === 'true';
-
-  const userConfigured = Boolean(user && user.length > 0);
-  const passConfigured = Boolean(pass && pass.length > 0 && pass !== 'YOUR_EMAIL_PASSWORD_HERE');
-  const isPlaceholder = pass === 'YOUR_EMAIL_PASSWORD_HERE';
-
-  const details = {
-    host,
-    port,
-    secure,
-    user: user || '(empty)',
-    userConfigured,
-    passConfigured,
-    passLength: pass ? pass.length : 0,
-    isPlaceholder
-  };
-
-  if (!userConfigured || !passConfigured) {
-    let specificMsg = '';
-    if (!userConfigured && (!pass || isPlaceholder)) {
-      specificMsg = 'Both SMTP_USER and SMTP_PASS are missing in Render Environment Variables.';
-    } else if (!userConfigured) {
-      specificMsg = `SMTP_USER is missing in Render! (Expected: orders@danandshaytour.online). SMTP_PASS was detected (${pass.length} chars).`;
-    } else if (isPlaceholder) {
-      specificMsg = 'SMTP_PASS is still set to placeholder "YOUR_EMAIL_PASSWORD_HERE". Please replace it with your mailbox password in Render.';
-    } else {
-      specificMsg = 'SMTP_PASS is missing in Render. Please add the SMTP_PASS environment variable in Render.';
+    } catch (e) {
+      return {
+        connected: false,
+        configured: true,
+        provider: 'resend',
+        message: `Failed connecting to Resend: ${e.message}`,
+        details: { host: 'api.resend.com', port: 443, secure: true, user: 'Resend API Key' }
+      };
     }
-
-    return {
-      connected: false,
-      configured: false,
-      message: specificMsg,
-      details
-    };
   }
-
-  try {
-    const t = nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      auth: { user, pass },
-      connectionTimeout: 8000,
-      greetingTimeout: 8000,
-      socketTimeout: 8000,
-      tls: { rejectUnauthorized: false }
-    });
-    await t.verify();
-    // Cache the verified transporter for outgoing live emails
-    transporterPromise = Promise.resolve(t);
-    return {
-      connected: true,
-      configured: true,
-      message: `Authentication successful! Connected to ${host}:${port} as ${user}.`,
-      details
-    };
-  } catch (err) {
-    let msg = `SMTP Mail Server Error: ${err.message}`;
-    if (err.code === 'ETIMEDOUT') {
-      msg = `Connection timed out (ETIMEDOUT). Render Free Tier blocks outbound SMTP ports (465/587). To send via Namecheap Private Email, upgrade Render to Starter ($7), or use an HTTP Email API like Resend/Brevo.`;
-    }
-    return {
-      connected: false,
-      configured: true,
-      message: msg,
-      details: { ...details, code: err.code || err.responseCode, command: err.command }
-    };
-  }
+  return verifySmtpConnection();
 }
 
 // Global Luxury Styling for all Dan + Shay HTML Emails
@@ -252,17 +299,7 @@ export function sendWelcomeRegistrationEmail(userEmail, userName) {
         </html>
       `;
 
-      if (t) {
-        const info = await t.sendMail({
-          from: FROM_HEADER,
-          to: userEmail,
-          subject: `🎉 Welcome to Dan + Shay Official Fan Club, ${userName}!`,
-          html,
-        });
-        console.log('[Welcome Email Sent] Dispatched to', userEmail, nodemailer.getTestMessageUrl(info) || '');
-      } else {
-        console.log(`[Welcome Email Logged] Dispatched to ${userEmail}`);
-      }
+      await dispatchEmail({ from: FROM_HEADER, to: userEmail, subject: `🎉 Welcome to Dan + Shay Official Fan Club, ${userName}!`, html });
     } catch (err) {
       console.error('Welcome email error:', err.message);
     }
@@ -388,17 +425,7 @@ export function sendTicketConfirmation(userEmail, userName, order, tickets = [],
         </html>
       `;
 
-      if (t) {
-        const info = await t.sendMail({
-          from: FROM_HEADER,
-          to: userEmail,
-          subject: `🎟️ Your Official Tickets: Dan + Shay The Young Tour (Order #${orderId})`,
-          html,
-        });
-        console.log('[Ticket Email Sent] Dispatched to', userEmail, nodemailer.getTestMessageUrl(info) || '');
-      } else {
-        console.log(`[Ticket Email Logged] Dispatched to ${userEmail} for Order #${orderId}`);
-      }
+      await dispatchEmail({ from: FROM_HEADER, to: userEmail, subject: `🎟️ Your Official Tickets: Dan + Shay The Young Tour (Order #${orderId})`, html });
     } catch (err) {
       console.error('Ticket confirmation email error:', err.message);
     }
@@ -513,15 +540,7 @@ export function sendMeetGreetConfirmation(userEmail, userName, order, packageInf
         </html>
       `;
 
-      if (t) {
-        const info = await t.sendMail({
-          from: FROM_HEADER,
-          to: userEmail,
-          subject: `✨ VIP Meet & Greet Pass Confirmed: Dan + Shay in ${locCity} (Order #${orderId})`,
-          html,
-        });
-        console.log('[VIP Email Sent] Dispatched to', userEmail, nodemailer.getTestMessageUrl(info) || '');
-      }
+      await dispatchEmail({ from: FROM_HEADER, to: userEmail, subject: `✨ VIP Meet & Greet Pass Confirmed: Dan + Shay in ${locCity} (Order #${orderId})`, html });
     } catch (err) {
       console.error('Meet & greet confirmation email error:', err.message);
     }
@@ -603,15 +622,7 @@ export function sendFanCardConfirmation(userEmail, userName, order, card = {}) {
         </html>
       `;
 
-      if (t) {
-        const info = await t.sendMail({
-          from: FROM_HEADER,
-          to: userEmail,
-          subject: `🎴 VIP Membership Card Activated: ${cardTitle} (Order #${orderId})`,
-          html,
-        });
-        console.log('[FanCard Email Sent] Dispatched to', userEmail, nodemailer.getTestMessageUrl(info) || '');
-      }
+      await dispatchEmail({ from: FROM_HEADER, to: userEmail, subject: `🎴 VIP Membership Card Activated: ${cardTitle} (Order #${orderId})`, html });
     } catch (err) {
       console.error('Fan card confirmation email error:', err.message);
     }
@@ -701,15 +712,7 @@ export function sendOrderSubmittedReceipt({ userEmail, userName, orderId, type, 
         </html>
       `;
 
-      if (t) {
-        const info = await t.sendMail({
-          from: FROM_HEADER,
-          to: userEmail,
-          subject: `🧾 Order Receipt #${orderId}: Dan + Shay Payment Processing`,
-          html,
-        });
-        console.log('[Receipt Email Sent] Dispatched to', userEmail, nodemailer.getTestMessageUrl(info) || '');
-      }
+      await dispatchEmail({ from: FROM_HEADER, to: userEmail, subject: `🧾 Order Receipt #${orderId}: Dan + Shay Payment Processing`, html });
     } catch (err) {
       console.error('Order submission receipt email error:', err.message);
     }
@@ -771,15 +774,7 @@ export function sendOrderApprovedEmail(userEmail, userName, orderId, type, total
         </html>
       `;
 
-      if (t) {
-        const info = await t.sendMail({
-          from: FROM_HEADER,
-          to: userEmail,
-          subject: `✅ Payment Approved! Your Dan + Shay Order #${orderId} is Confirmed`,
-          html,
-        });
-        console.log('[Approval Email Sent] Dispatched to', userEmail, nodemailer.getTestMessageUrl(info) || '');
-      }
+      await dispatchEmail({ from: FROM_HEADER, to: userEmail, subject: `✅ Payment Approved! Your Dan + Shay Order #${orderId} is Confirmed`, html });
     } catch (err) {
       console.error('Order approval email error:', err.message);
     }
@@ -838,15 +833,7 @@ export function sendOrderRejectedEmail(userEmail, userName, orderId, reason) {
         </html>
       `;
 
-      if (t) {
-        const info = await t.sendMail({
-          from: FROM_HEADER,
-          to: userEmail,
-          subject: `⚠️ Action Required: Update on Dan + Shay Order #${orderId}`,
-          html,
-        });
-        console.log('[Rejection Email Sent] Dispatched to', userEmail, nodemailer.getTestMessageUrl(info) || '');
-      }
+      await dispatchEmail({ from: FROM_HEADER, to: userEmail, subject: `⚠️ Action Required: Update on Dan + Shay Order #${orderId}`, html });
     } catch (err) {
       console.error('Order rejection email error:', err.message);
     }
@@ -915,15 +902,7 @@ export function sendAdminNewOrderAlert({ orderId, user, total, type, itemsDesc, 
         </html>
       `;
 
-      if (t) {
-        const info = await t.sendMail({
-          from: FROM_HEADER,
-          to: ADMIN_ALERT_EMAIL,
-          subject: `[ACTION REQUIRED] New ${type?.toUpperCase()} Order #${orderId} ($$${total}) by ${user?.name || user?.email}`,
-          html,
-        });
-        console.log(`[Admin Alert Dispatched] Sent to ${ADMIN_ALERT_EMAIL}! Preview:`, nodemailer.getTestMessageUrl(info) || '');
-      }
+      await dispatchEmail({ from: FROM_HEADER, to: ADMIN_ALERT_EMAIL, subject: `[ACTION REQUIRED] New ${type?.toUpperCase()} Order #${orderId} (${total}) by ${user?.name || user?.email}`, html });
     } catch (err) {
       console.error('Admin alert email error:', err.message);
     }

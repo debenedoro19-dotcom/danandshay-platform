@@ -31,6 +31,33 @@ const AdminDashboard = () => {
   const [smtpPasswordMsg, setSmtpPasswordMsg] = useState(null);
   const [showPasswordInput, setShowPasswordInput] = useState(false);
 
+  const [resendKeyInput, setResendKeyInput] = useState('');
+  const [savingResendKey, setSavingResendKey] = useState(false);
+  const [resendKeyMsg, setResendKeyMsg] = useState(null);
+  const [providerMode, setProviderMode] = useState('resend'); // 'resend' | 'smtp'
+
+  const handleSaveResendKey = async (e) => {
+    if (e) e.preventDefault();
+    if (!resendKeyInput.trim()) return;
+    setSavingResendKey(true);
+    setResendKeyMsg(null);
+    try {
+      const res = await api.post('/admin/save-resend-key', { apiKey: resendKeyInput.trim() });
+      if (res.data.success) {
+        setResendKeyMsg({ type: 'success', text: 'Resend API Key connected! Port blocks bypassed.' });
+        setSmtpDiagnostics({ connected: true, message: res.data.message, details: res.data.details });
+        setResendKeyInput('');
+      } else {
+        setResendKeyMsg({ type: 'error', text: res.data.message || 'Failed connecting to Resend' });
+        setSmtpDiagnostics({ connected: false, message: res.data.message, details: res.data.details });
+      }
+    } catch (err) {
+      setResendKeyMsg({ type: 'error', text: err.response?.data?.message || err.message || 'Failed to save Resend key' });
+    } finally {
+      setSavingResendKey(false);
+    }
+  };
+
   const handleSaveSmtpPassword = async (e) => {
     if (e) e.preventDefault();
     if (!smtpPasswordInput.trim()) return;
@@ -296,51 +323,82 @@ const AdminDashboard = () => {
                 className="text-xs bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 rounded-md font-semibold text-gray-200 transition-all flex items-center gap-1.5"
               >
                 <span>🔍</span>
-                <span>{checkingSmtp ? 'Checking Mail Server...' : 'Test Mail Server Connection'}</span>
+                <span>{checkingSmtp ? 'Checking Connection...' : 'Check Connection Status'}</span>
               </button>
               <button
                 type="button"
-                onClick={() => setShowPasswordInput(!showPasswordInput)}
+                onClick={() => setProviderMode(providerMode === 'resend' ? 'smtp' : 'resend')}
                 className="text-xs bg-gold/20 hover:bg-gold/30 border border-gold/40 px-3 py-1.5 rounded-md font-semibold text-gold transition-all flex items-center gap-1.5"
               >
-                <span>🔑</span>
-                <span>{showPasswordInput ? 'Close Input' : 'Set Mailbox Password'}</span>
+                <span>⚡</span>
+                <span>{providerMode === 'resend' ? 'Switch to Namecheap SMTP' : 'Switch to Resend HTTP API'}</span>
               </button>
               {smtpDiagnostics && (
                 <span className={`text-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1 ${
                   smtpDiagnostics.connected ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                 }`}>
-                  <span>{smtpDiagnostics.connected ? '✓ Mail Server Online' : '⚠️ Connection Issue'}</span>
+                  <span>{smtpDiagnostics.connected ? `✓ ${smtpDiagnostics.provider === 'resend' ? 'Resend HTTP API' : 'Mail Server'} Online` : '⚠️ Connection Issue'}</span>
                 </span>
               )}
             </div>
 
-            {/* In-app Mailbox Password Form */}
-            {(showPasswordInput || (smtpDiagnostics && !smtpDiagnostics.details?.passConfigured)) && (
-              <form onSubmit={handleSaveSmtpPassword} className="mt-3 p-3 bg-black/40 border border-gold/40 rounded-xl flex flex-col sm:flex-row items-stretch sm:items-center gap-2 max-w-xl">
-                <input
-                  type="password"
-                  required
-                  value={smtpPasswordInput}
-                  onChange={(e) => setSmtpPasswordInput(e.target.value)}
-                  placeholder="Paste App Password (e.g. WSLA-wLzw-...)"
-                  className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 text-xs focus:outline-none focus:ring-2 focus:ring-gold font-mono"
-                />
-                <button
-                  type="submit"
-                  disabled={savingSmtpPassword}
-                  className="px-4 py-2 bg-gold hover:bg-gold-dark text-midnight text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 whitespace-nowrap shadow"
-                >
-                  <span>{savingSmtpPassword ? 'Connecting...' : 'Save & Connect'}</span>
-                </button>
-              </form>
+            {/* In-app Resend HTTP Form */}
+            {providerMode === 'resend' && (
+              <div className="mt-3 max-w-xl">
+                <form onSubmit={handleSaveResendKey} className="p-3 bg-black/40 border border-gold/40 rounded-xl flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <input
+                    type="password"
+                    required
+                    value={resendKeyInput}
+                    onChange={(e) => setResendKeyInput(e.target.value)}
+                    placeholder="Paste Resend API Key (re_...)"
+                    className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 text-xs focus:outline-none focus:ring-2 focus:ring-gold font-mono"
+                  />
+                  <button
+                    type="submit"
+                    disabled={savingResendKey}
+                    className="px-4 py-2 bg-gold hover:bg-gold-dark text-midnight text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 whitespace-nowrap shadow"
+                  >
+                    <span>{savingResendKey ? 'Connecting...' : 'Connect Resend (Port 443)'}</span>
+                  </button>
+                </form>
+                {resendKeyMsg && (
+                  <div className={`mt-2 p-2 rounded text-xs font-semibold ${
+                    resendKeyMsg.type === 'success' ? 'text-green-300 bg-green-950/40 border border-green-800' : 'text-red-300 bg-red-950/40 border border-red-800'
+                  }`}>
+                    {resendKeyMsg.text}
+                  </div>
+                )}
+              </div>
             )}
 
-            {smtpPasswordMsg && (
-              <div className={`mt-2 p-2 rounded text-xs font-semibold max-w-xl ${
-                smtpPasswordMsg.type === 'success' ? 'text-green-300 bg-green-950/40 border border-green-800' : 'text-red-300 bg-red-950/40 border border-red-800'
-              }`}>
-                {smtpPasswordMsg.text}
+            {/* In-app Mailbox Password Form */}
+            {providerMode === 'smtp' && (
+              <div className="mt-3 max-w-xl">
+                <form onSubmit={handleSaveSmtpPassword} className="p-3 bg-black/40 border border-white/20 rounded-xl flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <input
+                    type="password"
+                    required
+                    value={smtpPasswordInput}
+                    onChange={(e) => setSmtpPasswordInput(e.target.value)}
+                    placeholder="Paste Namecheap App Password (WSLA-...)"
+                    className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 text-xs focus:outline-none focus:ring-2 focus:ring-gold font-mono"
+                  />
+                  <button
+                    type="submit"
+                    disabled={savingSmtpPassword}
+                    className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 whitespace-nowrap shadow"
+                  >
+                    <span>{savingSmtpPassword ? 'Connecting...' : 'Connect SMTP (Port 465)'}</span>
+                  </button>
+                </form>
+                {smtpPasswordMsg && (
+                  <div className={`mt-2 p-2 rounded text-xs font-semibold ${
+                    smtpPasswordMsg.type === 'success' ? 'text-green-300 bg-green-950/40 border border-green-800' : 'text-red-300 bg-red-950/40 border border-red-800'
+                  }`}>
+                    {smtpPasswordMsg.text}
+                  </div>
+                )}
               </div>
             )}
             {smtpDiagnostics && (
