@@ -48,7 +48,8 @@ async function getTransporter() {
   return transporterPromise;
 }
 
-const FROM_HEADER = process.env.SMTP_FROM || '"Dan + Shay Official" <orders@danandshay.com>';
+export const APP_URL = process.env.APP_URL || 'https://danandshaytour.online';
+const FROM_HEADER = process.env.SMTP_FROM || '"Dan + Shay Official" <orders@danandshaytour.online>';
 
 // Global Luxury Styling for all Dan + Shay HTML Emails
 const baseStyles = `
@@ -102,7 +103,7 @@ export function sendTicketConfirmation(userEmail, userName, order, tickets = [],
       
       const seatsList = (tickets || []).map(s => `Sec ${s.section}, Row ${s.row}, Seat ${s.seat_number || s.seatNumber}`).join(' | ') || 'Reserved Seating';
       const primarySeat = tickets[0] || {};
-      const qrPayload = encodeURIComponent(`https://danandshay-platform.onrender.com/verify-ticket?order=${orderId}&seat=${primarySeat.seat_number || 1}&token=DS26-${orderId}-VERIFIED`);
+      const qrPayload = encodeURIComponent(`${APP_URL}/verify-ticket?order=${orderId}&seat=${primarySeat.seat_number || 1}&token=DS26-${orderId}-VERIFIED`);
       const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${qrPayload}&margin=6`;
 
       const html = `
@@ -191,13 +192,13 @@ export function sendTicketConfirmation(userEmail, userName, order, tickets = [],
                 </div>
 
                 <div style="text-align: center; margin-top: 30px;">
-                  <a href="https://danandshay-platform.onrender.com/my-tickets" class="btn-gold">View Your Digital Passes Online ➔</a>
+                  <a href="${APP_URL}/my-tickets" class="btn-gold">View Your Digital Passes Online ➔</a>
                 </div>
               </div>
 
               <div class="footer">
                 <p>Dan + Shay • Official 2026 The Young Tour<br>Live Nation & Ticketmaster Certified Partner</p>
-                <p>Need support? Contact us anytime at <a href="mailto:support@danandshay.com">support@danandshay.com</a></p>
+                <p>Need support? Contact us anytime at <a href="mailto:support@danandshaytour.online">support@danandshaytour.online</a></p>
                 <p style="font-size: 10px; color: #6B7280;">Order #${orderId} • Confidential Ticket Pass</p>
               </div>
             </div>
@@ -238,7 +239,7 @@ export function sendMeetGreetConfirmation(userEmail, userName, order, packageInf
       const venue = event?.venue || 'Private VIP Artist Lounge';
       const perks = packageInfo?.perks || 'Private Meet & Greet with Dan + Shay, Photo Op, VIP Commemorative Laminate, Soundcheck Access';
 
-      const qrPayload = encodeURIComponent(`https://danandshay-platform.onrender.com/verify-vip?order=${orderId}&token=DS26-VIP-${orderId}-CONFIRMED`);
+      const qrPayload = encodeURIComponent(`${APP_URL}/verify-vip?order=${orderId}&token=DS26-VIP-${orderId}-CONFIRMED`);
       const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${qrPayload}&margin=6`;
 
       const html = `
@@ -316,13 +317,13 @@ export function sendMeetGreetConfirmation(userEmail, userName, order, packageInf
                 </table>
 
                 <div style="text-align: center; margin-top: 30px;">
-                  <a href="https://danandshay-platform.onrender.com/my-tickets" class="btn-gold">View Your VIP Credential ➔</a>
+                  <a href="${APP_URL}/my-tickets" class="btn-gold">View Your VIP Credential ➔</a>
                 </div>
               </div>
 
               <div class="footer">
                 <p>Dan + Shay • Official VIP Backstage Guest Program</p>
-                <p>Questions about your VIP session? Reach out at <a href="mailto:vip@danandshay.com">vip@danandshay.com</a></p>
+                <p>Questions about your VIP session? Reach out at <a href="mailto:vip@danandshaytour.online">vip@danandshaytour.online</a></p>
                 <p style="font-size: 10px; color: #6B7280;">VIP Pass #${orderId} • Non-Transferable • Photo ID Required</p>
               </div>
             </div>
@@ -407,13 +408,13 @@ export function sendFanCardConfirmation(userEmail, userName, order, card = {}) {
                 </table>
 
                 <div style="text-align: center; margin-top: 30px;">
-                  <a href="https://danandshay-platform.onrender.com/fan-cards" class="btn-gold">View Your 3D Card in Digital Vault ➔</a>
+                  <a href="${APP_URL}/fan-cards" class="btn-gold">View Your 3D Card in Digital Vault ➔</a>
                 </div>
               </div>
 
               <div class="footer">
                 <p>Dan + Shay • Founders Club Collector Program</p>
-                <p>Support: <a href="mailto:cards@danandshay.com">cards@danandshay.com</a></p>
+                <p>Support: <a href="mailto:cards@danandshaytour.online">cards@danandshaytour.online</a></p>
               </div>
             </div>
           </div>
@@ -504,13 +505,13 @@ export function sendOrderSubmittedReceipt({ userEmail, userName, orderId, type, 
                 </div>
 
                 <div style="text-align: center; margin-top: 30px;">
-                  <a href="https://danandshay-platform.onrender.com/my-tickets" class="btn-gold">View Order Status Online ➔</a>
+                  <a href="${APP_URL}/my-tickets" class="btn-gold">View Order Status Online ➔</a>
                 </div>
               </div>
 
               <div class="footer">
                 <p>Dan + Shay • Official 2026 The Young Tour</p>
-                <p>Have questions? Email us at <a href="mailto:support@danandshay.com">support@danandshay.com</a></p>
+                <p>Have questions? Email us at <a href="mailto:support@danandshaytour.online">support@danandshaytour.online</a></p>
                 <p style="font-size: 10px; color: #6B7280;">Order #${orderId} • Please retain for your records</p>
               </div>
             </div>
@@ -575,13 +576,13 @@ export function sendOrderApprovedEmail(userEmail, userName, orderId, type, total
                 </p>
 
                 <div style="text-align: center; margin-top: 30px;">
-                  <a href="https://danandshay-platform.onrender.com/my-tickets" class="btn-gold">Access Your Official Passes ➔</a>
+                  <a href="${APP_URL}/my-tickets" class="btn-gold">Access Your Official Passes ➔</a>
                 </div>
               </div>
 
               <div class="footer">
                 <p>Dan + Shay • Official 2026 The Young Tour</p>
-                <p>Support: <a href="mailto:support@danandshay.com">support@danandshay.com</a></p>
+                <p>Support: <a href="mailto:support@danandshaytour.online">support@danandshaytour.online</a></p>
               </div>
             </div>
           </div>
@@ -641,14 +642,14 @@ export function sendOrderRejectedEmail(userEmail, userName, orderId, reason) {
                 </p>
 
                 <div style="text-align: center; margin-top: 26px;">
-                  <a href="https://danandshay-platform.onrender.com/events" class="btn-gold" style="background: #991B1B; color: #FFFFFF !important;">
+                  <a href="${APP_URL}/events" class="btn-gold" style="background: #991B1B; color: #FFFFFF !important;">
                     Re-Submit Payment ➔
                   </a>
                 </div>
               </div>
 
               <div class="footer">
-                <p>Dan + Shay Verification Desk • <a href="mailto:support@danandshay.com">support@danandshay.com</a></p>
+                <p>Dan + Shay Verification Desk • <a href="mailto:support@danandshaytour.online">support@danandshaytour.online</a></p>
               </div>
             </div>
           </div>
@@ -720,7 +721,7 @@ export function sendAdminNewOrderAlert({ orderId, user, total, type, itemsDesc, 
                 </div>
 
                 <div style="text-align: center; margin-top: 30px;">
-                  <a href="https://danandshay-platform.onrender.com/admin/orders" class="btn-gold">Open Admin Dashboard to Approve ➔</a>
+                  <a href="${APP_URL}/admin/orders" class="btn-gold">Open Admin Dashboard to Approve ➔</a>
                 </div>
               </div>
 

@@ -20,8 +20,9 @@ const MeetGreetPass = ({ pkg, user }) => {
   const perks = pkg.perks || 'Private Meet & Greet with Dan + Shay, Professional Photo, Signed Tour Laminate, Soundcheck Access';
   const attendeeName = user?.name || 'VIP Guest';
 
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://danandshaytour.online';
   const vipToken = `DS26-VIP-${orderId}-MG${pkg.meet_greet_id || 1}-CONFIRMED`;
-  const qrPayload = `https://danandshay-platform.onrender.com/verify-vip?order=${orderId}&token=${vipToken}`;
+  const qrPayload = `${baseUrl}/verify-vip?order=${orderId}&token=${vipToken}`;
 
   return (
     <>

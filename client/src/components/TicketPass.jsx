@@ -35,8 +35,9 @@ const TicketPass = ({ ticket, user }) => {
   const tierLabel = isVIP ? 'OFFICIAL VIP GOLD PASS' : 'STANDARD RESERVED ENTRY';
 
   // Verification URL & digital token
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://danandshaytour.online';
   const secureToken = `DS26-${orderId}-${section}${row}${seatNumber}-VERIFIED`;
-  const qrPayload = `https://danandshay-platform.onrender.com/verify-ticket?order=${orderId}&seat=${seatNumber}&sec=${section}&token=${secureToken}`;
+  const qrPayload = `${baseUrl}/verify-ticket?order=${orderId}&seat=${seatNumber}&sec=${section}&token=${secureToken}`;
   const barcodeNumber = `4892 ${String(orderId).padStart(4, '0')} ${String(seatNumber).padStart(4, '0')} 9210`;
 
   const eventDateObj = new Date(eventDateRaw);
