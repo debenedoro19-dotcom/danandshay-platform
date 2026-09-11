@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { get, run, saveDatabase, getPgPool } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
+import { sendWelcomeRegistrationEmail } from '../services/email.js';
 
 const router = express.Router();
 const JWT_SECRET = 'danandshay_jwt_secret_2026';
@@ -26,6 +27,9 @@ router.post('/register', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, salt);
     const result = run('INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)', [cleanName, cleanEmail, passwordHash]);
     saveDatabase();
+
+    // Dispatch luxury welcome email
+    sendWelcomeRegistrationEmail(cleanEmail, cleanName);
 
     const user = { id: result.lastInsertRowid, name: cleanName, email: cleanEmail, role: 'fan' };
     const token = jwt.sign(user, JWT_SECRET, { expiresIn: '7d' });

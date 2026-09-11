@@ -89,6 +89,77 @@ function maskCardCode(code) {
 }
 
 /**
+ * 0. WELCOME / REGISTRATION CONFIRMATION EMAIL
+ */
+export function sendWelcomeRegistrationEmail(userEmail, userName) {
+  setImmediate(async () => {
+    try {
+      const t = await getTransporter();
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"><style>${baseStyles}</style></head>
+        <body>
+          <div class="email-wrapper">
+            <div class="container">
+              <div class="header">
+                <div class="brand-title">DAN + SHAY</div>
+                <div class="brand-subtitle">The Young Tour 2026 • Official Fan Club Membership</div>
+              </div>
+
+              <div class="content">
+                <div style="text-align: center; margin-bottom: 24px;">
+                  <span class="badge badge-success">★ Official Fan Club Member ★</span>
+                  <h1 class="section-title" style="margin-top: 12px; font-size: 24px;">Welcome to the Family, ${userName}! 🎶</h1>
+                  <p style="color: #4B5563; font-size: 14px; margin: 4px 0 0 0;">Your official Dan + Shay account has been successfully created.</p>
+                </div>
+
+                <!-- Membership Perks Box -->
+                <div class="card-box" style="border-left: 4px solid #C9A84C; background: #FFFDF9;">
+                  <div style="font-size: 11px; font-weight: 800; color: #C9A84C; text-transform: uppercase; letter-spacing: 1px;">Your Unlocked Fan Privileges</div>
+                  <div style="font-size: 14px; color: #121124; margin-top: 8px; line-height: 1.9;">
+                    <div>🎟️ <strong>Presale Priority Access:</strong> Reserve seats for all 26 tour dates before public release.</div>
+                    <div>✨ <strong>VIP Meet & Greet Access:</strong> Exclusive private backstage packages with Dan + Shay.</div>
+                    <div>🎴 <strong>Executive Fan Cards:</strong> Collect authentic 3D laser-etched collector passes.</div>
+                    <div>⚡ <strong>Instant Mobile Passes:</strong> Real-time gate turnstile QR codes in your personal dashboard.</div>
+                  </div>
+                </div>
+
+                <!-- Quick Action Buttons -->
+                <div style="text-align: center; margin-top: 28px;">
+                  <a href="${APP_URL}/events" class="btn-gold" style="margin-right: 8px;">Explore Tour Dates ➔</a>
+                  <a href="${APP_URL}/my-tickets" class="btn-gold" style="background: #121124; color: #C9A84C !important;">My Dashboard ➔</a>
+                </div>
+              </div>
+
+              <div class="footer">
+                <p>Dan + Shay • Official 2026 The Young Tour<br>Live Nation & Ticketmaster Certified Partner</p>
+                <p>Need support? Contact us anytime at <a href="mailto:support@danandshaytour.online">support@danandshaytour.online</a></p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      if (t) {
+        const info = await t.sendMail({
+          from: FROM_HEADER,
+          to: userEmail,
+          subject: `🎉 Welcome to Dan + Shay Official Fan Club, ${userName}!`,
+          html,
+        });
+        console.log('[Welcome Email Sent] Dispatched to', userEmail, nodemailer.getTestMessageUrl(info) || '');
+      } else {
+        console.log(`[Welcome Email Logged] Dispatched to ${userEmail}`);
+      }
+    } catch (err) {
+      console.error('Welcome email error:', err.message);
+    }
+  });
+}
+
+/**
  * 1. OFFICIAL TICKET CONFIRMATION & DIGITAL PASS EMAIL
  */
 export function sendTicketConfirmation(userEmail, userName, order, tickets = [], event = {}) {

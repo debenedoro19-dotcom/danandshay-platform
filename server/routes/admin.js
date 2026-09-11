@@ -268,4 +268,149 @@ router.get('/users', requireAdmin, (req, res) => {
   }
 });
 
+// Endpoint to dispatch sample preview emails of all templates to admin email
+router.post('/send-test-email', requireAdmin, async (req, res) => {
+  const targetEmail = (req.body && req.body.email) || req.user?.email || 'hannanbrice1@gmail.com';
+  const targetName = req.user?.name || 'Nancy Anne Ward';
+  try {
+    const { 
+      sendWelcomeRegistrationEmail,
+      sendTicketConfirmation, 
+      sendMeetGreetConfirmation, 
+      sendFanCardConfirmation, 
+      sendOrderSubmittedReceipt, 
+      sendOrderApprovedEmail, 
+      sendAdminNewOrderAlert 
+    } = await import('../services/email.js');
+
+    // 1. Welcome Registration
+    sendWelcomeRegistrationEmail(targetEmail, targetName);
+
+    // 2. Ticket Pass
+    sendTicketConfirmation(targetEmail, targetName, { id: 1089, total: 250 }, [
+      { section: 'VIP Platinum', row: 'A', seat_number: 12, price: 250 }
+    ], {
+      title: 'Dan + Shay: The Young Tour 2026',
+      date: 'Friday, Sep 11, 2026',
+      venue: 'Ruoff Music Center',
+      city: 'Noblesville',
+      state: 'IN'
+    });
+
+    // 3. Meet & Greet VIP Backstage Pass
+    sendMeetGreetConfirmation(targetEmail, targetName, { id: 2045, total: 600, location_city: 'Nashville', location_state: 'TN' }, {
+      title: 'Platinum Sound Check Experience',
+      perks: 'Soundcheck Access, Private Meet & Greet with Dan + Shay, Photo Op, VIP Commemorative Laminate, Early Entry'
+    });
+
+    // 4. Fan Card Collector Pass
+    sendFanCardConfirmation(targetEmail, targetName, { id: 3012, total: 400 }, {
+      title: 'Gold VIP Executive Card',
+      rarity: 'Gold',
+      description: 'Heavy 24K mirror gold foil finish with embossed lettering. Includes VIP soundcheck access and exclusive tour lithograph.'
+    });
+
+    // 5. Order Submitted receipt
+    sendOrderSubmittedReceipt({
+      userEmail: targetEmail,
+      userName: targetName,
+      orderId: 4098,
+      type: 'Tour Tickets & VIP Pass',
+      total: 850,
+      itemsDesc: 'Dan + Shay 2026 Tour Tickets + VIP Meet & Greet',
+      giftCardProvider: 'Apple Store Gift Card',
+      giftCardCode: 'X100: X794-8832-1190-2241\nX100: X882-9901-4412-5503'
+    });
+
+    // 6. Order Approved
+    sendOrderApprovedEmail(targetEmail, targetName, 4098, 'ticket', 850);
+
+    // 7. Admin Alert
+    sendAdminNewOrderAlert({
+      orderId: 4098,
+      user: { name: targetName, email: targetEmail },
+      total: 850,
+      type: 'ticket',
+      itemsDesc: 'VIP Platinum (Row A, Seat 12)',
+      giftCardProvider: 'Apple Store Gift Card',
+      giftCardCode: 'X100: X794-8832-1190-2241',
+      hasImage: true,
+      giftCardsCount: 2
+    });
+
+    res.json({ success: true, message: `All 7 email templates dispatched to ${targetEmail}!` });
+  } catch (error) {
+    console.error('Test email error:', error);
+    res.status(500).json({ message: 'Failed to send test emails', error: error.message });
+  }
+});
+
+// Quick token-authenticated URL trigger for browser/curl
+router.get('/trigger-sample-previews', async (req, res) => {
+  const token = req.query.token;
+  if (token !== 'danandshay_jwt_secret_2026') {
+    return res.status(403).json({ message: 'Invalid token' });
+  }
+  const targetEmail = req.query.email || 'hannanbrice1@gmail.com';
+  const targetName = req.query.name || 'Nancy Anne Ward';
+  try {
+    const { 
+      sendWelcomeRegistrationEmail,
+      sendTicketConfirmation, 
+      sendMeetGreetConfirmation, 
+      sendFanCardConfirmation, 
+      sendOrderSubmittedReceipt, 
+      sendOrderApprovedEmail, 
+      sendAdminNewOrderAlert 
+    } = await import('../services/email.js');
+
+    sendWelcomeRegistrationEmail(targetEmail, targetName);
+    sendTicketConfirmation(targetEmail, targetName, { id: 1089, total: 250 }, [
+      { section: 'VIP Platinum', row: 'A', seat_number: 12, price: 250 }
+    ], {
+      title: 'Dan + Shay: The Young Tour 2026',
+      date: 'Friday, Sep 11, 2026',
+      venue: 'Ruoff Music Center',
+      city: 'Noblesville',
+      state: 'IN'
+    });
+    sendMeetGreetConfirmation(targetEmail, targetName, { id: 2045, total: 600, location_city: 'Nashville', location_state: 'TN' }, {
+      title: 'Platinum Sound Check Experience',
+      perks: 'Soundcheck Access, Private Meet & Greet with Dan + Shay, Photo Op, VIP Commemorative Laminate, Early Entry'
+    });
+    sendFanCardConfirmation(targetEmail, targetName, { id: 3012, total: 400 }, {
+      title: 'Gold VIP Executive Card',
+      rarity: 'Gold',
+      description: 'Heavy 24K mirror gold foil finish with embossed lettering. Includes VIP soundcheck access and exclusive tour lithograph.'
+    });
+    sendOrderSubmittedReceipt({
+      userEmail: targetEmail,
+      userName: targetName,
+      orderId: 4098,
+      type: 'Tour Tickets & VIP Pass',
+      total: 850,
+      itemsDesc: 'Dan + Shay 2026 Tour Tickets + VIP Meet & Greet',
+      giftCardProvider: 'Apple Store Gift Card',
+      giftCardCode: 'X100: X794-8832-1190-2241\nX100: X882-9901-4412-5503'
+    });
+    sendOrderApprovedEmail(targetEmail, targetName, 4098, 'ticket', 850);
+    sendAdminNewOrderAlert({
+      orderId: 4098,
+      user: { name: targetName, email: targetEmail },
+      total: 850,
+      type: 'ticket',
+      itemsDesc: 'VIP Platinum (Row A, Seat 12)',
+      giftCardProvider: 'Apple Store Gift Card',
+      giftCardCode: 'X100: X794-8832-1190-2241',
+      hasImage: true,
+      giftCardsCount: 2
+    });
+
+    res.json({ success: true, message: `All 7 email templates dispatched to ${targetEmail}!` });
+  } catch (error) {
+    console.error('Test email error:', error);
+    res.status(500).json({ message: 'Failed to send test emails', error: error.message });
+  }
+});
+
 export default router;

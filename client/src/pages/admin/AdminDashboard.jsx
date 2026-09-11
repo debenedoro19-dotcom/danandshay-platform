@@ -7,6 +7,30 @@ const AdminDashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState({ totalRevenue: 0, totalOrders: 0, totalUsers: 0, ticketsSold: 0, recentOrders: [] });
   const [loading, setLoading] = useState(true);
+  const [testEmail, setTestEmail] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailStatus, setEmailStatus] = useState(null);
+
+  useEffect(() => {
+    if (user?.email) {
+      setTestEmail(user.email);
+    }
+  }, [user]);
+
+  const handleSendTestEmails = async (e) => {
+    if (e) e.preventDefault();
+    const recipient = testEmail || user?.email || 'hannanbrice1@gmail.com';
+    setSendingEmail(true);
+    setEmailStatus(null);
+    try {
+      const res = await api.post('/admin/send-test-email', { email: recipient });
+      setEmailStatus({ type: 'success', message: res.data.message || `Sample previews dispatched to ${recipient}!` });
+    } catch (err) {
+      setEmailStatus({ type: 'error', message: err.response?.data?.message || err.message || 'Failed to dispatch test emails' });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -72,6 +96,60 @@ const AdminDashboard = () => {
             Manage Users
           </Link>
         </div>
+      </div>
+
+      {/* Live Email System & Template Previewer */}
+      <div className="mb-10 bg-gradient-to-r from-midnight via-charcoal to-midnight text-white p-6 rounded-2xl shadow-lg border border-gold/30">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">✉️</span>
+              <h2 className="text-xl font-display font-bold text-gold">Live Email Templates Suite</h2>
+            </div>
+            <p className="text-sm text-gray-300 mt-1 max-w-2xl">
+              Dispatch live sample previews of all 7 luxury email templates (Registration Welcome, Turnstile Ticket Passes, VIP Meet & Greet Credentials, 3D Fan Cards, Order Receipts, and Admin Alerts) directly to your inbox.
+            </p>
+          </div>
+
+          <form onSubmit={handleSendTestEmails} className="w-full md:w-auto flex flex-col sm:flex-row items-center gap-3">
+            <input
+              type="email"
+              required
+              value={testEmail}
+              onChange={(e) => setTestEmail(e.target.value)}
+              placeholder="admin@danandshaytour.online"
+              className="px-4 py-2.5 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold text-sm w-full sm:w-72"
+            />
+            <button
+              type="submit"
+              disabled={sendingEmail}
+              className={`w-full sm:w-auto px-5 py-2.5 rounded-lg bg-gold hover:bg-gold-dark text-midnight font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2 whitespace-nowrap ${
+                sendingEmail ? 'opacity-70 cursor-not-allowed' : ''
+              }`}
+            >
+              {sendingEmail ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-midnight border-t-transparent rounded-full animate-spin"></div>
+                  <span>Dispatching...</span>
+                </>
+              ) : (
+                <>
+                  <span>🚀</span>
+                  <span>Send All 7 Previews</span>
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+
+        {emailStatus && (
+          <div className={`mt-4 p-3 rounded-lg text-sm font-medium flex items-center gap-2 ${
+            emailStatus.type === 'success' ? 'bg-green-500/20 text-green-300 border border-green-500/40' : 'bg-red-500/20 text-red-300 border border-red-500/40'
+          }`}>
+            <span>{emailStatus.type === 'success' ? '✅' : '⚠️'}</span>
+            <span>{emailStatus.message}</span>
+          </div>
+        )}
       </div>
 
       {/* Recent Orders */}
