@@ -109,23 +109,6 @@ export async function dispatchEmail({ to, subject, html, from }) {
 
       const result = await response.json();
       if (!response.ok) {
-        if (result.message && (result.message.includes('domain') || result.message.includes('own email address'))) {
-          console.warn('[Resend] Fallback to onboarding@resend.dev...');
-          payload.from = 'Dan + Shay Official <onboarding@resend.dev>';
-          const retryRes = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${resendKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-          });
-          const retryResult = await retryRes.json();
-          if (retryRes.ok) {
-            console.log(`[Email System - Resend HTTP] Dispatched to ${to} (id: ${retryResult.id})`);
-            return { success: true, id: retryResult.id, provider: 'resend' };
-          }
-        }
         throw new Error(result.message || 'Resend HTTP API error');
       }
 
