@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import EventCard from '../components/EventCard';
 import api from '../api';
@@ -7,7 +7,7 @@ const EventsPage = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filterMonth, setFilterMonth] = useState('All');
+  const [filterMonth, setFilterMonth] = useState('Upcoming');
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -23,6 +23,12 @@ const EventsPage = () => {
     fetchEvents();
   }, []);
 
+  const now = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
   const filteredEvents = events.filter(e => {
     const matchesSearch = e.city.toLowerCase().includes(search.toLowerCase()) || 
                           e.venue.toLowerCase().includes(search.toLowerCase()) ||
@@ -31,10 +37,18 @@ const EventsPage = () => {
     if (!matchesSearch) return false;
     
     if (filterMonth === 'All') return true;
+
+    if (filterMonth === 'Upcoming') {
+      return new Date(e.date) >= now;
+    }
     
     const month = new Date(e.date).toLocaleString('default', { month: 'short' });
     return month === filterMonth;
   });
+
+  // Split into upcoming and past for "All" view
+  const upcomingEvents = filteredEvents.filter(e => new Date(e.date) >= now);
+  const pastEvents = filteredEvents.filter(e => new Date(e.date) < now);
 
   const containerVars = {
     hidden: { opacity: 0 },
@@ -63,7 +77,7 @@ const EventsPage = () => {
         {/* Filters */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6 bg-white p-4 rounded-xl shadow-sm border border-blush">
           <div className="flex flex-wrap gap-2">
-            {['All', 'Sep', 'Oct', 'Nov'].map(m => (
+            {['Upcoming', 'All', 'Sep', 'Oct', 'Nov'].map(m => (
               <button
                 key={m}
                 onClick={() => setFilterMonth(m)}
@@ -109,18 +123,62 @@ const EventsPage = () => {
             <p className="text-gray-500">Try adjusting your search or filters.</p>
           </div>
         ) : (
-          <motion.div 
-            variants={containerVars}
-            initial="hidden"
-            animate="show"
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-          >
-            {filteredEvents.map(event => (
-              <motion.div key={event.id} variants={itemVars}>
-                <EventCard event={event} />
+          <>
+            {/* Upcoming Events */}
+            {upcomingEvents.length > 0 && (
+              <>
+                {(filterMonth === 'All' && pastEvents.length > 0) && (
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <h2 className="text-xl font-display font-bold text-midnight">Upcoming Shows</h2>
+                    <span className="text-xs font-bold bg-green-100 text-green-700 px-2.5 py-0.5 rounded-full">{upcomingEvents.length} remaining</span>
+                  </div>
+                )}
+                <motion.div 
+                  variants={containerVars}
+                  initial="hidden"
+                  animate="show"
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+                >
+                  {upcomingEvents.map(event => (
+                    <motion.div key={event.id} variants={itemVars}>
+                      <EventCard event={event} />
+                    </motion.div>
+                  ))}
+                </motion.div>
+              </>
+            )}
+
+            {/* Divider between upcoming and past */}
+            {(filterMonth === 'All' && upcomingEvents.length > 0 && pastEvents.length > 0) && (
+              <div className="flex items-center gap-4 my-14">
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+                <span className="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  Past Events
+                </span>
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+              </div>
+            )}
+
+            {/* Past Events */}
+            {pastEvents.length > 0 && filterMonth !== 'Upcoming' && (
+              <motion.div 
+                variants={containerVars}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+              >
+                {pastEvents.map(event => (
+                  <motion.div key={event.id} variants={itemVars}>
+                    <EventCard event={event} />
+                  </motion.div>
+                ))}
               </motion.div>
-            ))}
-          </motion.div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -128,3 +186,4 @@ const EventsPage = () => {
 };
 
 export default EventsPage;
+

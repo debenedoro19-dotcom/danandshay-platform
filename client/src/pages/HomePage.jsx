@@ -39,7 +39,13 @@ const HomePage = () => {
           api.get('/fancards')
         ]);
         
-        if (eventsRes.data) setFeaturedEvents(eventsRes.data.slice(0, 3));
+        if (eventsRes.data) {
+          // Only show upcoming events on the homepage — past events auto-excluded
+          const now = new Date();
+          now.setHours(0, 0, 0, 0);
+          const upcoming = eventsRes.data.filter(e => new Date(e.date) >= now);
+          setFeaturedEvents(upcoming.slice(0, 3));
+        }
         if (cardsRes.data) setPreviewCards(cardsRes.data.slice(0, 3));
       } catch (err) {
         console.error("Error fetching home data:", err);

@@ -150,12 +150,25 @@ const EventDetailPage = () => {
                   )}
                 </div>
 
-                <div className="border-t border-gold/30 pt-4 mb-6">
+                <div className="border-t border-gold/30 pt-4 mb-4">
                   <div className="flex justify-between items-center">
                     <span className="font-bold text-charcoal">Total</span>
                     <span className="text-2xl font-display font-bold text-midnight">${ticketTotal}</span>
                   </div>
                 </div>
+
+                {/* Coupon Teaser — show when 2+ tickets selected */}
+                {selectedSeatIds.length >= 2 && (
+                  <div className="mb-4 p-2.5 rounded-lg bg-gradient-to-r from-gold/10 to-amber-50 border border-gold/30">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">🏷️</span>
+                      <div>
+                        <p className="text-[11px] font-bold text-midnight">Got a coupon? Save up to 25% at checkout!</p>
+                        <p className="text-[10px] text-charcoal/60">Multi-ticket discount vouchers accepted at checkout</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <button 
                   onClick={handleBookTicket}

@@ -5,11 +5,16 @@ const router = express.Router();
 
 router.get('/', (req, res) => {
   try {
+    // Auto-sort: upcoming events first (soonest at top), past events pushed to bottom
     const events = all(`
       SELECT e.*, 
-        (SELECT MIN(price) FROM venue_seats WHERE event_id = e.id AND status = 'available') as min_price
+        (SELECT MIN(price) FROM venue_seats WHERE event_id = e.id AND status = 'available') as min_price,
+        CASE WHEN e.date < date('now') THEN 1 ELSE 0 END as is_past
       FROM events e
-      ORDER BY e.date ASC
+      ORDER BY 
+        CASE WHEN e.date < date('now') THEN 1 ELSE 0 END ASC,
+        CASE WHEN e.date >= date('now') THEN e.date END ASC,
+        CASE WHEN e.date < date('now') THEN e.date END DESC
     `);
     res.json(events);
   } catch (error) {

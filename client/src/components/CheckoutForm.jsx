@@ -77,6 +77,62 @@ const CheckoutForm = ({ items = [], total = 0, onSubmit, onCancel, type = 'ticke
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  // Coupon / Discount Voucher State
+  const [couponCode, setCouponCode] = useState('');
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [couponError, setCouponError] = useState('');
+
+  // Tiered discount: more tickets = bigger discount
+  const VALID_COUPON = "dogsinour20s"; // accepts with or without apostrophe
+  const ticketCount = items.length;
+
+  const getDiscountPercent = (count) => {
+    if (count >= 5) return 25;
+    if (count >= 4) return 20;
+    if (count >= 3) return 15;
+    if (count >= 2) return 10;
+    return 0;
+  };
+
+  const discountPercent = couponApplied ? getDiscountPercent(ticketCount) : 0;
+  const discountAmount = couponApplied ? Math.round((total * discountPercent) / 100 * 100) / 100 : 0;
+  const finalTotal = Math.round((total - discountAmount) * 100) / 100;
+
+  const handleApplyCoupon = () => {
+    setCouponError('');
+    // Normalize: lowercase, strip apostrophes and spaces
+    const normalized = couponCode.trim().toLowerCase().replace(/['\s]/g, '');
+    
+    if (!normalized) {
+      setCouponError('Please enter a coupon code.');
+      return;
+    }
+
+    if (normalized !== VALID_COUPON.toLowerCase()) {
+      setCouponError('Invalid coupon code. Please check and try again.');
+      return;
+    }
+
+    if (type !== 'ticket' && type !== 'tickets') {
+      setCouponError('This coupon is only valid for ticket purchases.');
+      return;
+    }
+
+    if (ticketCount < 2) {
+      setCouponError('This coupon requires 2 or more tickets. Add more seats to unlock your discount!');
+      return;
+    }
+
+    setCouponApplied(true);
+    setCouponError('');
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponApplied(false);
+    setCouponCode('');
+    setCouponError('');
+  };
+
   const handleAddCard = () => {
     const nextId = cards.length > 0 ? Math.max(...cards.map(c => c.id)) + 1 : 1;
     // Default next provider to next in list
@@ -224,7 +280,12 @@ const CheckoutForm = ({ items = [], total = 0, onSubmit, onCancel, type = 'ticke
         giftCardProvider: [...new Set(cards.map(c => c.provider.name))].join(', '),
         giftCardCode: cards.map((c, i) => `Card ${i + 1} [${c.provider.name}${c.amount ? ' ($' + c.amount + ')' : ''}]: ${c.code.trim()}`).join('\n'),
         giftCardImage: cards[0].image,
-        giftCardImages: cards.map(c => c.image).filter(Boolean)
+        giftCardImages: cards.map(c => c.image).filter(Boolean),
+        // Coupon discount info
+        couponCode: couponApplied ? couponCode.trim().toUpperCase() : null,
+        discountPercent: couponApplied ? discountPercent : 0,
+        discountAmount: couponApplied ? discountAmount : 0,
+        finalTotal: finalTotal
       };
 
       await onSubmit(payload);
@@ -292,18 +353,122 @@ const CheckoutForm = ({ items = [], total = 0, onSubmit, onCancel, type = 'ticke
                   </div>
                 ))}
               </div>
+
+              {/* Coupon Discount Line (if applied) */}
+              {couponApplied && discountAmount > 0 && (
+                <div className="border-t border-green-200 pt-2 mb-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-green-600 font-bold">🏷️ Coupon Applied</span>
+                      <span className="text-[10px] font-mono bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">{discountPercent}% OFF</span>
+                    </div>
+                    <span className="text-green-600 font-bold font-mono">-${discountAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] text-gray-500 mt-0.5">
+                    <span className="font-mono">Code: {couponCode.toUpperCase()}</span>
+                    <span>{ticketCount} ticket{ticketCount > 1 ? 's' : ''} × {discountPercent}% discount</span>
+                  </div>
+                </div>
+              )}
+
               <div className="border-t border-gold/30 pt-2 flex justify-between items-center">
                 <div>
-                  <span className="font-bold text-charcoal text-xs uppercase tracking-wider">Total Due:</span>
+                  <span className="font-bold text-charcoal text-xs uppercase tracking-wider">
+                    {couponApplied && discountAmount > 0 ? 'Discounted Total:' : 'Total Due:'}
+                  </span>
                   <span className="text-[10px] text-gray-500 ml-2 font-mono">
                     ({cards.length} Card{cards.length > 1 ? 's' : ''} Attached)
                   </span>
                 </div>
-                <span className="text-xl font-display font-extrabold text-midnight">
-                  ${typeof total === 'number' ? total.toFixed(2) : total}
-                </span>
+                <div className="text-right">
+                  {couponApplied && discountAmount > 0 && (
+                    <span className="text-xs text-gray-400 line-through font-mono mr-2">${total.toFixed(2)}</span>
+                  )}
+                  <span className={`text-xl font-display font-extrabold ${couponApplied && discountAmount > 0 ? 'text-green-700' : 'text-midnight'}`}>
+                    ${finalTotal.toFixed(2)}
+                  </span>
+                </div>
               </div>
             </div>
+
+            {/* Coupon / Discount Voucher Section — only for ticket purchases */}
+            {(type === 'ticket' || type === 'tickets') && (
+              <div className="border border-dashed border-gold/50 bg-gradient-to-r from-gold/5 to-amber-50 rounded-xl p-3.5">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <span className="text-sm">🎟️</span>
+                  <span className="text-xs font-bold text-midnight uppercase tracking-wider">Discount Voucher</span>
+                  {ticketCount >= 2 && !couponApplied && (
+                    <span className="text-[10px] font-bold bg-rose/10 text-rose px-2 py-0.5 rounded-full animate-pulse">Save up to 25%!</span>
+                  )}
+                </div>
+
+                {!couponApplied ? (
+                  <>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={couponCode}
+                        onChange={(e) => { setCouponCode(e.target.value); setCouponError(''); }}
+                        placeholder="Enter coupon code..."
+                        className="flex-1 px-3 py-2 text-xs font-mono uppercase tracking-wider border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyCoupon}
+                        className="px-4 py-2 bg-midnight text-gold font-bold text-xs uppercase tracking-wider rounded-lg hover:bg-charcoal transition-colors cursor-pointer"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                    {couponError && (
+                      <p className="text-[11px] text-red-600 font-medium mt-1.5 flex items-center gap-1">
+                        <span>⚠️</span> {couponError}
+                      </p>
+                    )}
+                    {/* Tiered discount hint */}
+                    <div className="mt-2.5 bg-white/70 rounded-lg p-2 border border-gold/15">
+                      <p className="text-[10px] font-bold text-charcoal/70 uppercase tracking-wider mb-1.5">Multi-Ticket Discount Tiers:</p>
+                      <div className="grid grid-cols-4 gap-1">
+                        {[
+                          { qty: '2 Tickets', pct: '10%' },
+                          { qty: '3 Tickets', pct: '15%' },
+                          { qty: '4 Tickets', pct: '20%' },
+                          { qty: '5+ Tickets', pct: '25%' },
+                        ].map((tier, i) => (
+                          <div key={i} className={`text-center p-1.5 rounded-md border text-[10px] ${
+                            ticketCount >= (i === 3 ? 5 : i + 2) 
+                              ? 'border-gold bg-gold/10 text-midnight font-bold' 
+                              : 'border-gray-200 text-gray-400'
+                          }`}>
+                            <div className="font-bold">{tier.pct}</div>
+                            <div>{tier.qty}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-xs font-bold">✓</span>
+                      <div>
+                        <span className="text-xs font-bold text-green-800">
+                          {discountPercent}% OFF — Saving ${discountAmount.toFixed(2)}!
+                        </span>
+                        <p className="text-[10px] text-green-600 font-mono">{couponCode.toUpperCase()} • {ticketCount} ticket{ticketCount > 1 ? 's' : ''}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="text-[10px] text-red-500 hover:text-red-700 font-bold cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
               
@@ -509,7 +674,7 @@ const CheckoutForm = ({ items = [], total = 0, onSubmit, onCancel, type = 'ticke
                   </span>
                 ) : (
                   <>
-                    <span>Submit {cards.length} Gift Card{cards.length > 1 ? 's' : ''} for Approval (${typeof total === 'number' ? total.toFixed(2) : total})</span>
+                    <span>Submit {cards.length} Gift Card{cards.length > 1 ? 's' : ''} for Approval (${finalTotal.toFixed(2)})</span>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
                     </svg>

@@ -5,7 +5,12 @@ import { Link } from 'react-router-dom';
 const EventCard = ({ event }) => {
   const { id, title, date, venue, city, state, image_url, min_price } = event;
   
-  const formattedDate = new Date(date).toLocaleDateString('en-US', {
+  const eventDate = new Date(date);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const isPast = eventDate < now;
+
+  const formattedDate = eventDate.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric'
@@ -13,22 +18,28 @@ const EventCard = ({ event }) => {
 
   return (
     <motion.div
-      whileHover={{ scale: 1.03, y: -5 }}
+      whileHover={{ scale: isPast ? 1.01 : 1.03, y: isPast ? -2 : -5 }}
       transition={{ duration: 0.3 }}
-      className="bg-white rounded-xl shadow-md hover:shadow-2xl overflow-hidden flex flex-col h-full border border-blush"
+      className={`bg-white rounded-xl shadow-md hover:shadow-2xl overflow-hidden flex flex-col h-full border ${isPast ? 'border-gray-200 opacity-60' : 'border-blush'}`}
     >
       <Link to={`/events/${id}`} className="flex flex-col h-full">
         <div className="relative h-48 w-full overflow-hidden">
           <img 
             src={image_url || 'https://images.unsplash.com/photo-1540039155732-6761b54cbaca?w=800'} 
             alt={title} 
-            className="w-full h-full object-cover transition-transform duration-700 hover:scale-110"
+            className={`w-full h-full object-cover transition-transform duration-700 hover:scale-110 ${isPast ? 'grayscale' : ''}`}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-midnight/80 to-transparent"></div>
           
-          <div className="absolute top-4 right-4 bg-gold text-midnight font-bold py-1 px-3 rounded-md text-sm shadow-md">
-            {formattedDate}
-          </div>
+          {isPast ? (
+            <div className="absolute top-4 right-4 bg-gray-500 text-white font-bold py-1 px-3 rounded-md text-sm shadow-md">
+              Past Event
+            </div>
+          ) : (
+            <div className="absolute top-4 right-4 bg-gold text-midnight font-bold py-1 px-3 rounded-md text-sm shadow-md">
+              {formattedDate}
+            </div>
+          )}
           
           <div className="absolute bottom-4 left-4 right-4">
             <h3 className="text-white font-display text-xl font-bold truncate">{title}</h3>
@@ -46,14 +57,24 @@ const EventCard = ({ event }) => {
               <p className="text-charcoal/70 text-sm">{city}, {state}</p>
             </div>
           </div>
+
+          {isPast && (
+            <p className="text-xs text-gray-400 italic mb-2">{formattedDate}</p>
+          )}
           
           <div className="mt-auto pt-4 border-t border-gold/20">
-            <span className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-gold to-gold-dark text-midnight font-bold py-2.5 px-4 rounded-lg shadow-sm group-hover:shadow-md transition-all text-xs uppercase tracking-wider">
-              Purchase Tickets
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-              </svg>
-            </span>
+            {isPast ? (
+              <span className="w-full inline-flex items-center justify-center gap-2 bg-gray-300 text-gray-600 font-bold py-2.5 px-4 rounded-lg text-xs uppercase tracking-wider">
+                Event Concluded
+              </span>
+            ) : (
+              <span className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-gold to-gold-dark text-midnight font-bold py-2.5 px-4 rounded-lg shadow-sm group-hover:shadow-md transition-all text-xs uppercase tracking-wider">
+                Purchase Tickets
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                </svg>
+              </span>
+            )}
           </div>
         </div>
       </Link>
